@@ -10,7 +10,7 @@
 #define DEFAULT_MS 20//默认输出间隔
 #define escpro 5//怪物逃跑的概率
 #define addpro 100//掉落概率
-#define lineL 5//每行输出物品的个数+1
+#define lineL 4//每行输出物品的个数+1
 #define MAX(X,Y) ((X)>(Y)?(X):(Y))
 #define MIN(X,Y) ((X)<(Y)?(X):(Y))
 #define COLOR(X) SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), X)//用于更改字符颜色
@@ -26,14 +26,15 @@
 　　6=黄色                14=淡黄色       0xe        　　
 　　7=白色                15=亮白色       0xf */
 
-
+//本程序由文止墨(2184711240@qq.com)编写。
+//本程序灵感来自于网络上的“海战棋代码”，但本程序在编写时并未使用其代码(指各个函数的实现方式，以及程序的数据结构)。
 
 
 /*-----------下面定义结构体---------*/
 
 
 struct Prop { //道具结构体
-	int n;//道具编号0-50为防具，51-100为武器，101-150为攻击道具，151-200为回复道具，201-250为防御道具
+	int n;//道具编号0-49为防具，50-99为武器，100-149为攻击道具，150-199为回复道具，200-249为防御道具
 	char *name;
 	int num[LEN];//道具的数值，如增加的防御力、攻击力，或造成的伤害、回复的血量等等
 	int type;//道具类型，0为武器，1为防具，2为攻击道具，3为回复道具，4为物品材料
@@ -47,6 +48,9 @@ struct Souvenir { //纪念品结构体
 	int read;//是否为可以读取内容的类型
 	char *intro;//物品简介
 	char *content;//如果是可以读取的类型，它的内容
+	int f;//是否有自己的函数
+	void (*function)();//函数指针
+	int ms;//输出内容时间隔，不指明时和DEFAULT_MS一样。
 };
 
 struct Player { //玩家结构体
@@ -99,31 +103,40 @@ struct Skill { //技能结构体
 };
 
 struct ConNode { //对话结构体
-	int role;// 这句话是谁说的，0代表玩家，1代表NPC
+	int fight;// 会不会在这句话后进入战斗，如果进入则为敌人编号
+	int fight_continue;//战斗失败后是否继续剧情，如果继续的话会将玩家回复到满状态
 	char *content;//这句话的内容
 	int ifchoose;//是否需要选择，以及选择的数量
 	char *chooselist[5];//每个选择的内容
 	int next[5];//对应应跳转的节点
 	int start_task;//这句话是否会开启某个任务，任务的编号。无则为0.
 	int check_task;//这句话检查某个任务是否完成
+	int finish_next_con[2];//在检查玩任务是否完成后，依据情况触发不同的对话
+
 };
 
 struct Task {
 	char* name;
-
+	int see;//是否会在任务列表里看见（用于多分支结局的任务给出不同的奖励）
+	int npc_s;//这个任务找谁接取
+	int npc_f;//这个任务找谁提交
+	int con_s;//接取这个任务第一句话是什么（当这个任务可被接取时，将上述npc的对话节点改成这个
+	int con_f;//提交这个任务第一句话是什么
 	int start;//判断这个任务有没有开始
 	int finish;//判断这个任务有没有完成
-	int futher;//该任务是否是某个大型任务的子任务（用于输出任务树时不会重复输出子任务以及完成子任务时检查父任务是否完成）
+	int father;//该任务是否是某个大型任务的子任务（用于输出任务树时不会重复输出子任务以及完成子任务时检查父任务是否完成）
 	int sonnum;//这个任务有几个子任务
 	int son[5];//子任务的编号
 	int condition[4];//前置条件，0是否拥有某种道具，1是否拥有某种纪念品，
 	//2是否完成某个任务，3对应0所需的道具数量
 	int lever[LEN];//前置条件-是否达到指定等级
 	char *intro;//任务内容描述
-	int con;//这个任务第一句话是什么
+	int f_son;//完成条件，至少要完成几个子任务（用于多分支任务）
+	int f_condition[4];//完成条件，0是否拥有某种道具，1是否拥有某种纪念品，
+	//2无作用，3对应0所需的道具数量
 	int give_prop;//任务完成给予什么道具
 	int give_prop_num;//数量
-	int give_souvenir;
+	int give_souvenir;//纪念品奖励
 	int give_exp[LEN];//经验奖励
 	int give_gold[LEN];//金币奖励
 	int next;//后续任务的编号，没有则为0（大型任务在接取时自动开启子任务，这个变量只用于任务链传递）
@@ -131,6 +144,7 @@ struct Task {
 
 struct NPC {
 	char *name;
+	int task[51];//记录这个npc会受到哪些任务影响
 	int var[50];//独立变量
 	/*暂时不这么安排。
 	var[0]代表这个npc是否能触发任务，如果能则为对应任务的编号；
@@ -139,7 +153,8 @@ struct NPC {
 	也就是说，一个NPC最多可以处在48个任务内
 	（不要觉得这很多，因为我们是将一个大型任务细分为许多个小任务完成的，因此可能一个大型任务需要找某个特定的NPC很多次）
 	*/
-	struct ConNode *con;//打招呼内容,该内容是一个对话节点，可能会因为任务没完成造成打招呼用语的改变，
+	int nomal_con;//在没有任务的情况下这个NPC的对话起点
+	struct ConNode *con;//对话的起点,该内容是一个对话节点，可能会因为任务没完成造成用语的改变，
 };
 /*---------初始化道具-防具---------*/
 
@@ -191,7 +206,7 @@ struct Prop fj[50]= {
 	},
 
 	{
-		.n=0,
+		.n=5,
 		.name="装甲\0",
 		.num={0,0,0,5,0,0,0,0,0,0,0,0,0,0,0},
 		.type=1,
@@ -200,7 +215,7 @@ struct Prop fj[50]= {
 	},
 
 	{
-		.n=0,
+		.n=6,
 		.name="你五年前丢失的睡衣\0",
 		.num={0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
 		.type=1,
@@ -209,7 +224,7 @@ struct Prop fj[50]= {
 	},
 
 	{
-		.n=50,
+		.n=7,
 		.name="ERR\\OR@\\#$\\%sd!sdFAS!@\\\\\0",
 		.num={0,0,0,0,0,0,0,0,0,0,0,0,0,0,9},
 		.type=1,
@@ -256,7 +271,7 @@ struct Prop wq[50]= {
 	},
 
 	{
-		.n=99,
+		.n=53,
 		.name="ERROR#$warRE@#er%^EVE\0",
 		.num={0,0,0,0,0,0,0,0,0,0,0,0,0,0,9},
 		.type=1,
@@ -273,7 +288,7 @@ struct Prop wq[50]= {
 
 struct Prop gj[50]= {
 	{
-		.n=101,
+		.n=100,
 		.name="手雷\0",
 		.num={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
 		.type=2,
@@ -291,7 +306,7 @@ struct Prop gj[50]= {
 
 	},
 	{
-		.n=101,
+		.n=102,
 		.name="粑粑\0",
 		.num={9,9,9,9,0,0,0,0,0,0,0,0,0,0,0},
 		.type=2,
@@ -421,8 +436,8 @@ struct Souvenir souvenir[50]= {
 		.have=1,
 		.read=1,
 		.intro="姬子温柔的注视着你，不再言语。",
-		.content="姬\\.子\\.温\\.柔\\.的\\.注\\.视\\.着\\.你\\.，\\.不\\.再\\.言\\.语\\.。",
-
+		.content="姬子温柔的注视着你\\.，不再言语。",
+		.ms=50,
 	},
 
 	{
@@ -504,6 +519,131 @@ struct Souvenir souvenir[50]= {
 		.read=1,
 		.intro="木质模型。曾被某人放飞，又被某人捡起。",
 		.content="“……奥托。” \\.\\.\\.\\.\\.\\.\\.\\.\n“奥托·阿波卡利斯。” ",
+		.ms=30,
+	},
+	{
+		//12
+		.name="原神第一转伤定律",
+		.have=1,
+		.read=1,
+		.intro="我  是  O  P  !",
+		.content="《原神动态第一转伤定律》：\n发表你逆天言论后，只要转发原神抽奖，你的一切非原神成分都将被无视，且你将被作为原神玩家攻击。",
+		.ms=2,
+
+	},
+	{
+		//13
+		.name="See You Again",
+		.have=1,
+		.read=1,
+		.intro="扣1复活直升机",
+		.ms=1,
+		.content="你说得对，但是科比·布莱恩特生于1978年8月23日，出生地是美国宾夕法尼亚州费城。\n他的父亲是前职业篮球运动员约翰·布莱恩特，而他的母亲则是意大利和美国的混血儿。\n科比从小就展现出了过人的篮球天赋，他的父亲在退役后也一直是他的导师和引导者，帮助他完成篮球方面的训练和教育。\n在1996年的NBA选秀中，科比被洛杉矶湖人队选中，从此开始了他的职业篮球生涯。他的职业生涯持续了20个赛季，期间他先后拿下了5个NBA总冠军、2个NBA总决赛MVP、4个全明星赛MVP等无数个荣誉。\n科比·布莱恩特也两次代表美国国家队参加奥运会，分别在2008年北京奥运会和2012年伦敦奥运会上获得了金牌。他不仅在比赛中的表现十分出色，在场下的影响力也是无可挑剔的，是一位非常有创造力的人。\n曾经写过小说、拍过短片、投资过创业公司等等。他有着非常深厚的文化底蕴和艺术追求，这让他的影响力远远超出了篮球这一范畴。他还积极参与公益事业，为慈善事业做出了很多贡献。\n但是，2019年底，科比·布莱恩特的自己的私人飞机上遭遇了一场致命的意外。他和其他8人一同离世，这场意外震惊了整个世界。他的离去让人们深感悲痛和痛惜，篮球界也失去了一位不可替代的传奇。",
+	},
+	{
+		//14
+		.name="青玉小剑",
+		.have=1,
+		.read=1,
+		.intro="以心血蕴养的飞剑。",
+		.content="“去吧，去吧。\\.我去的地方不需要勇气，你去的地方才需要勇气。” ",
+		.ms=30,
+	},
+	{
+		//15
+		.name="照片·自问",
+		.have=1,
+		.read=0,
+		.intro="“若再许我少年时，一两黄金一两风。” ",
+	},
+	{
+		//16
+		.name="校园网",
+		.have=1,
+		.read=0,
+		.intro="暴躁的根源。",
+	},
+	{
+		//17
+		.name="西瓜条",
+		.have=1,
+		.read=0,
+		.intro="“家人们，谁懂啊。”",
+	},
+	{
+		//18
+		.name="What Is Love",
+		.have=1,
+		.read=0,
+		.intro="“B Y D 大力王自己都蚌埠住了是吧。”",
+	},
+	{
+		//19
+		.name="暗藏玄只因",
+		.have=1,
+		.read=0,
+		.intro="“厉不厉害你坤哥。”",
+	},
+	{
+		//20
+		.name="麦克阿瑟",
+		.have=1,
+		.read=1,
+		.intro="五星天皇。",
+		.content="“给他一次网址，他能往硬盘里塞满学习资料；给他一点时间，他能释放无数生命。\n就连美国五星上将麦克阿瑟也对此评论到：‘如果上帝让我去和他打交道，我宁愿去打交。’” ",
+	},
+	{
+		//21
+		.name="九转大肠",
+		.have=1,
+		.read=0,
+		.intro="“……是故意的还是不小心？”",
+	},
+	{
+		//22
+		.name="Never Gonna Give You Up",
+		.have=1,
+		.read=0,
+		.intro="你  被  骗  了。",
+
+	},
+	{
+		//23
+		.name="黑框眼镜",
+		.have=1,
+		.read=1,
+		.intro="杰哥专属封印道具。",
+		.content="“让我看看你发育正不正常！” ",
+	},
+	{
+		//24
+		.name="鸡汤",
+		.have=1,
+		.read=0,
+		.intro="“哈哈哈哈哈，鸡汤来喽！”",
+	},
+	{
+		//25
+		.name="安倍晋三",
+		.have=1,
+		.read=0,
+		.intro="日本第一男枪，和肯尼迪不相上下。",
+	},
+	{
+		//26
+		.name="爱心",
+		.have=1,
+		.read=0,
+		.f=1,
+		//.function=puthart,
+		.intro="来个爱心！",
+	},
+	{
+		//27
+		.name="真诚",
+		.have=1,
+		.read=0,
+		.intro="“真诚是最好的必杀技”",
 	},
 };
 
@@ -601,28 +741,59 @@ struct Skill skill_list[20]= {
 };
 
 /*-----------下面初始化各个怪物-----------*/
-struct Monster slm= {
-	.name="史莱姆\0",
-	.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
-	.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	.snum=&skill_list[0],
-	.pro=90,
-	.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
-	.v="跳了过来\0",
+struct Monster monsters[100]= {
+	{
+		//0
+		.name="史莱姆\0",
+		.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
+		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.snum=&skill_list[0],
+		.pro=90,
+		.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.v="跳了过来\0",
+
+	},
+	{
+		//1
+		.name="史莱姆\0",
+		.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
+		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.snum=&skill_list[0],
+		.pro=90,
+		.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.v="跳了过来\0",
+
+	},
+	{
+		//2
+		.name="ERROR怪\0",
+		.hp={0,0,0,0,0,0,0,9,9,9,9,9,9,9,9},
+		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.snum=&skill_list[1],
+		.pro=50,
+		.exp={0,0,0,2,0,0,0,0,0,0,0,0,0,0},
+		.v="出现了\0",
+
+	},
+	{
+		//1
+		.name="艾瑟拉\0",
+		.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
+		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.snum=&skill_list[0],
+		.pro=90,
+		.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.v="从你的梦境中浮现\0",
+
+	},
 
 };
-struct Monster error= {
-	.name="ERROR怪\0",
-	.hp={0,0,0,0,0,0,0,9,9,9,9,9,9,9,9},
-	.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	.snum=&skill_list[1],
-	.pro=50,
-	.exp={0,0,0,2,0,0,0,0,0,0,0,0,0,0},
-	.v="出现了\0",
 
-};
+
 struct Monster monster= {
 	.name="\0",
 	.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -639,7 +810,7 @@ struct Monster monster= {
 struct ConNode conversations[500]= {
 	{
 		//0
-		.role=1,
+		.fight=0,
 		.content="这是一个测试文本。没有选择。不会开启任务",
 		.ifchoose=0,
 		.start_task=0,
@@ -648,7 +819,7 @@ struct ConNode conversations[500]= {
 
 	{
 		//1
-		.role=1,
+		.fight=0,
 		.content="这是一个测试文本。没有选择。不会开启任务",
 		.ifchoose=0,
 		.start_task=0,
@@ -656,7 +827,7 @@ struct ConNode conversations[500]= {
 	},
 	{
 		//2
-		.role=1,
+		.fight=0,
 		.content="这是一个测试文本。有选择。不会开启任务",
 		.ifchoose=5,
 		.chooselist={"C1","C2","C3","C0","C5"},
@@ -666,10 +837,61 @@ struct ConNode conversations[500]= {
 	},
 	{
 		//3
-		.role=1,
+		.fight=0,
 		.content="这是一个测试文本。无选择。会开启任务",
 		.ifchoose=0,
 		.start_task=1,
+		.check_task=0,
+	},
+	{
+		//4
+		.fight=0,
+		.content="\n在你回去的路上，有个女人拦住了你。\\W女人：那个……你是他们口中的勇者吗？”\n\n这个女人的脸上带着一丝恐惧，很显然她看见了超出自己认知的事物。\n\n“我需要你的帮助，先生。我在那边的废墟里看到了一只巨大的鲸鱼。但它好像被什么东西重创了。\n\t我很害怕，先生，你能帮帮我吗？或者哪怕只是陪我去看一眼？”\\W在这种地方遇见一个女人可太奇怪了————这又不是什么傻卵二次元游戏，你想————但她的表情又指出这不是空口而谈。\n\n你决定————",
+		.ifchoose=2,
+		.chooselist={"跟她一起去看看","离我远点，可疑的女人","\0","\0","\0"},
+		.next={6,5,0,0,0},
+		.start_task=0,
+		.check_task=0,
+	},
+	{
+		//5
+		.fight=0,
+		.content="“非常抱歉，女士。”  你很遗憾地告诉她你家里煤气忘记关了，没时间管什么居民委托，“我不得不尽快回去。”\\W女人张了张嘴，最后失望的独自离去了。",
+		.ifchoose=0,
+		.chooselist={"0","0","C3","C0","C5"},
+		.next={0,0,0,0,0},
+		.start_task=0,
+		.check_task=0,
+	},
+	{
+		//6
+		.fight=0,
+		.content="\n“没问题，小姐。你可以向我详细说说是什么情况吗？”助人为乐一直是你的美德————在大部分情况下如此————因此你好不犹豫的同意了她的请求。反正你自认为自己的战斗力睥睨全球，不怕有什么阴招。“哦，哦。好的，我们边走边说吧”女人没想到你答应的这么干脆，顿时喜出望外。",
+		.ifchoose=1,
+		.chooselist={"没问题","C2","C3","C0","C5"},
+		.next={7,0,0,0,0},
+		.start_task=0,
+		.check_task=0,
+	},
+	{
+		//7
+		.fight=0,
+		.content="“我叫薇，先生。”女人自我介绍一番后，开始讲述她所见的一切：\\W\\C[8]薇在从城里回家的时候目睹了一片巨大的黑影从天空中坠落，一直坠落到森林边缘————也就是薇的家在的地方。\n她小跑过去，发现那是一头浑身散发着淡蓝色光芒的鲸鱼。就在她思考逃跑还是逃跑的时候，那头鲸鱼的光芒闪了一下，随即暗淡下去。与此同时，一只小一点的、带有红紫色花纹的鲸鱼从前者的呼吸孔钻出来，却在它巨大的肉体上陷入沉睡。\n\n\\C[7]听到这里你的眉头皱了起来，薇所描述的巨大鲸鱼与你曾在村子里看到的一本典籍上所描述的一致————它是突然出现在40年前的强大生物，每次现身都为当地带来不可挽回的伤亡。最重要的是，与它战斗过的人大都患上了严重的失眠症，最终与痛苦和幻觉中死去。\n\n不过根据薇的描述，巨鲸“艾瑟拉”显然是被某种东西所重创了，以至于使其不得不依靠蜕生来免于死亡。这种状态下的艾瑟拉也许不足以将你打败，是个机会，你想。\n\n同时，你在薇的描述里发现了几个疑点：那片森林毫无人烟，她是如何在那里建起房子的？为什么没人听说过她？\n\n但你决定继续听她说下去，兴许是鲸鱼对记忆的影响让她混淆了这些消息。\\W“那东西究竟是什么？我会不会得什么怪病？”薇有些焦虑，她在介绍完所见的一切后，不免开始担心自己。",
+		.ifchoose=1,
+		.chooselist={"（真要有什么大问题你也不会活着见到我了……）","C2","C3","C0","C5"},
+		.next={8,0,0,0,0},
+		.start_task=0,
+		.check_task=0,
+	},
+	{
+		//8
+		.fight=3,
+		.fight_continue=1,
+		.content="你并没有将这句话说出去，因为在你们面前就是艾瑟拉巨大的尸体，以及愤怒的小鲸鱼。",
+		.ifchoose=0,
+		.chooselist={"C1","C2","C3","C0","C5"},
+		.next={9,0,0,0,0},
+		.start_task=0,
 		.check_task=0,
 	},
 };
@@ -678,19 +900,19 @@ struct ConNode conversations[500]= {
 
 /*--------------------下面初始化任务----------------*/
 
-struct Task taskarr[500]= {
+struct Task tasks[500]= {
 	{
 		//0
 		.name="任务0",
-		.start=0,
-		.finish=0,
-		.futher=0,
+		.start=1,
+		.finish=1,
+		.father=0,
 		.sonnum=0,
 		.son={0,0,0,0,0},
 		.condition={0,0,0,0},
 		.lever={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 		.intro="这里是任务0内容描述。intro。",
-		.con=0,
+		.con_s=0,
 		.give_prop=159,//绿色星星
 		.give_prop_num=1000,
 		.give_souvenir=1,
@@ -704,13 +926,14 @@ struct Task taskarr[500]= {
 		.name="任务1",
 		.start=0,
 		.finish=0,
-		.futher=0,
+		.father=0,
 		.sonnum=0,
 		.son={0,0,0,0,0},
 		.condition={0,0,0,0},
 		.lever={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 		.intro="这里是任务1内容描述。intro。",
-		.con=0,
+		.con_s=0,
+		.f_condition={0,0,0,0},
 		.give_prop=159,//绿色星星
 		.give_prop_num=1000,
 		.give_souvenir=1,
@@ -721,16 +944,17 @@ struct Task taskarr[500]= {
 
 	{
 		//2
-		.name="任务2",
+		.name="鲸落",
 		.start=0,
 		.finish=0,
-		.futher=0,
+		.father=0,
 		.sonnum=0,
 		.son={0,0,0,0,0},
-		.condition={0,0,0,0},
+		.condition={0,0,1,0},
 		.lever={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-		.intro="这里是任务2内容描述。intro。",
-		.con=0,
+		.intro="与薇一同打败鲸鱼。",
+		.con_s=0,
+		.f_condition={0,0,1,0},
 		.give_prop=159,//绿色星星
 		.give_prop_num=1000,
 		.give_souvenir=1,
@@ -757,7 +981,7 @@ struct NPC npcs[50]= {
 		//1
 		.name="村长",
 		.var={0},
-		.con=&conversations[2],
+		.con=&conversations[4],
 	},
 
 
@@ -792,7 +1016,7 @@ int comparr(int ary1[],int ary2[]);
 void putheart(void);
 //在屏幕上输出一个爱心！
 
-void SlowDisplay(const char *text);
+void SlowDisplay(const char *text,int n);
 //输出字符函数
 
 void putarr(int a[]);
@@ -801,8 +1025,8 @@ void putarr(int a[]);
 void leverUP(int i);
 //判断是否升级并执行
 
-void attackact(struct Player *player,struct Monster monster);
-//攻击行为函数。运行此函数将进入战斗直到一方倒下或逃跑（未完成）
+int attackact(struct Player *player,struct Monster monster);
+//攻击行为函数。运行此函数将进入战斗直到一方倒下或逃跑。胜利返回1，失败返回0
 
 int random(void);
 //以当前时间（秒为单位）为种子生成一个0～99的随机数
@@ -819,12 +1043,21 @@ void conversation(struct Player *player,struct NPC *npc);
 
 int takechoose(int i);
 //选择函数，包括数字输入、WASD选择和方向键选择.i表示choosenum能达到的最大值+1
-//按Q返回0，表示退出选择;按R返回2，表示阅读(纪念品);回车返回3，表示确定;平时返回1。
+//按Q返回0，表示退出选择;按R返回2，表示阅读(纪念品);回车返回3，表示确定;按P返回4，表示运行;平时返回1。
 //数字输入时，按删除键执行choosenum/10,即回退一位数字。
 
-//struct Skill readskill(int s);
-//通过技能编号读取技能信息的函数
+int checktask(struct Task *task);
+//检查任务函数，检查任务是否满足开始条件(返回1/0)、任务是否开启(返回2)、任务是否完成(返回3)
+//优先级从前往后升高
 
+void wait(void);
+//等待函数负责在一些地方等待用户按任意键确认
+
+struct Prop *index2prop(int n);
+//通过物品编号返回结构体
+
+void check_npc_task(struct NPC *npc);
+//检查该npc所有相关任务是否完成，并对该npc的对话起点做出相应修改。
 
 /*---------定义变量，因为函数也要用到这些变量，所以定义到main外面--------*/
 
@@ -847,6 +1080,8 @@ int MS=DEFAULT_MS;//输出间隔
 int gold[LEN];//金币数量
 
 char *waring_content="你瞎输牛魔呢？滚啊！！！";
+
+int checktask_result=0;//记录在SlowDisplay中\\T检查的结果
 /*---------main函数-----------*/
 int main() {
 	/*初始化各种数组*/
@@ -856,9 +1091,10 @@ int main() {
 	player[0].defp=&fj[0];
 	player[0].attp=&wq[0];
 	/*初始化怪物掉落物*/
-	slm.prop=&wq[2];
-	error.prop=&wq[3];
-
+	monsters[1].prop=&wq[2];
+	monsters[2].prop=&wq[3];
+	/*初始化结构体函数指针*/
+	souvenir[26].function=putheart;
 	/*SlowDisplay("这里\\.本来应该\\.\\.\\.写背景故事的，\n但是作者也不知道背景故事是什么。。。\n勇敢的少年啊，快快告诉我你的名字，去创造神话吧！\n(200个字符以内)：");
 	char player_name[200];
 	scanf("%s", player_name);
@@ -867,10 +1103,10 @@ int main() {
 	player[1] = player[0];
 
 
-	monster=slm;
+	monster=monsters[1];
 	while(1) {
 		conversation(&player[0],&npcs[1]);
-		//bag();
+		bag();
 		//attackact(&player[0],monster);
 	}
 
@@ -1048,29 +1284,48 @@ void putheart(void) { //在屏幕上输出一个爱心！
 		printf("%3d",i);
 		if(i%7==0)printf("\n");
 	}
+	COLOR(7);
 }
 
-void SlowDisplay(const char *text) {
+void SlowDisplay(const char *text,int n) {//n=0说明需要缓慢输出并跳过暂停控制符；n=1说明直接输出内容,这两种情况都不会影响字体颜色改变
+
 	for (int i = 0; text[i] != '\0'; i++) {
 		if (text[i] == '\\' && text[i + 1] == '.') {
-			usleep(50*1000); // 暂停1秒
+			if(n==0)usleep(50*1000); // 暂停1秒
 			i++; // 跳过'.'
+		} else if(text[i] == '\\' && text[i + 1] == 'C'&&text[i+2]=='[') {
+			int color=0;
+			i+=2;
+			while(text[++i]!=']') {
+				color*=10;
+				color+=text[i]-'0';
+			}
+			//printf("\n%d\n",color);
+			COLOR(color);
+
+		} else if(text[i] == '\\' && text[i + 1] == 'W') {
+			if(n==0)wait();
+			else printf("\n\n\n");
+			i++;
+		} else if(text[i] == '\\' && text[i + 1] == 'T'&&text[i+2]=='[') {
+			int task=0;
+			i+=2;
+			while(text[++i]!=']') {
+				task*=10;
+				task+=text[i]-'0';
+				
+			}
+			checktask_result=checktask(&tasks[task]);
+
 		} else {
 			putchar(text[i]); // 逐字符显示
 			fflush(stdout);   // 刷新输出缓冲区，确保字符立即显示
-			usleep(MS * 1000); // 延迟指定的毫秒数
+			if(n==0)usleep(MS * 1000); // 延迟指定的毫秒数
 		}
-
-		/*if (_kbhit()) { // 如果玩家此时敲击了键盘，则退格到这次输出的起始，直接输出整句话
-		    getch(); // 如果不这么写玩家敲击的键值会一直留在缓冲区，导致循环
-		    for (int j = 0; j <= i; j++) {
-		        printf("\b \b"); // 退格
-		    }
-		    printf("%s", text);
-		    break;
-		}*/
 	}
+
 }
+
 
 void putarr(int a[]) { //输出数据的函数
 	int boo=0;
@@ -1098,7 +1353,7 @@ void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第
 	int n[LEN]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 	int ll[LEN]= {0,5,0,0,0,0,0,0,0,0,0,0,0,0,0};
 	int one[LEN]= {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	while(comparr(player[i].exp,player[i+1].lexp)==1) {
+	while(comparr(player[i].exp,player[i+1].lexp)==1) {//判断此时玩家经验是否达到升级条件
 		if(comparr(player[i].lever,ll)==-1) { //50级以下
 			plusarr(n,one);
 			mularr(player[i+1].lexp,1.3);
@@ -1115,11 +1370,11 @@ void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第
 
 	}
 	if(comparr(n,one)==1) {
-		SlowDisplay("蛙趣，连升");
+		SlowDisplay("蛙趣，连升",0);
 		putarr(n);
-		SlowDisplay("级！\n");
+		SlowDisplay("级！\n",0);
 	} else if(comparr(n,one)==0) {
-		SlowDisplay("升级了！");
+		SlowDisplay("升级了！",0);
 	}
 	plusarr(player[i+1].lever,n);
 	copyarr(player[i].lever,player[i+1].lever);
@@ -1133,11 +1388,12 @@ void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第
 
 
 
-void attackact(struct Player *player,struct Monster monster) { //战斗模块                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        妈的，写累死了都没写完。??
+int attackact(struct Player *player,struct Monster monster) { 
+//战斗模块，赢了返回1输了返回0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        妈的，写累死了都没写完。??
 	system("cls");//清除控制台
-	SlowDisplay(monster.name);
-	SlowDisplay(monster.v);
-	SlowDisplay("！\n");
+	SlowDisplay(monster.name,0);
+	SlowDisplay(monster.v,0);
+	SlowDisplay("！\n",0);
 	int k=1;//有一方血量为零或逃跑成功时k=0
 	int harm[LEN];//攻击产生的伤害
 	int hpplus[LEN];//技能或道具回复的血量
@@ -1171,11 +1427,11 @@ PlayerRand:
 				scanf("%d",&choosenum);//读入选择的技能
 				fflush(stdin);
 				if(choosenum==114514) {
-					SlowDisplay(player->name);
-					SlowDisplay("说：\"我什么都做不到！\"\n\n");
+					SlowDisplay(player->name,0);
+					SlowDisplay("说：\"我什么都做不到！\"\n\n",0);
 					usleep(1000*1000);
 					printf("突然！天空中出现一道光芒！\n");
-					SlowDisplay("某处传来一个声音：“版本之子，启动！”\n");
+					SlowDisplay("某处传来一个声音：“版本之子，启动！”\n",0);
 					player->attp=&wq[3];
 					player->defp=&fj[7];
 					mularr(player->attack,9999);
@@ -1186,13 +1442,13 @@ PlayerRand:
 					break;
 				} else if(choosenum>(sizeof(sarr)/sizeof(sarr[0]))||choosenum==-1) {
 					printf("………………\n");
-					SlowDisplay(waring_content);
+					SlowDisplay(waring_content,0);
 					system("cls");//清除控制台
 					goto PlayerRand;
 				}
 
 				if(comparr(player->hd,sarr[choosenum].sp)!=1) { //如果蓝不够
-					SlowDisplay("你的法力不足！！\n");
+					SlowDisplay("你的法力不足！！\n",0);
 					goto PlayerRand;//重新开始这回合
 				}
 				minusarr(player->hd,sarr[choosenum].sp);//减少蓝
@@ -1205,28 +1461,28 @@ PlayerRand:
 
 				minusarr(harm,monster.defence);//计算最终伤害
 
-				SlowDisplay(player->name);
-				SlowDisplay("使出了");
-				SlowDisplay(sarr[choosenum].name);
+				SlowDisplay(player->name,0);
+				SlowDisplay("使出了",0);
+				SlowDisplay(sarr[choosenum].name,0);
 				printf("！");
-				SlowDisplay(sarr[choosenum].suffix);
-				SlowDisplay(monster.name);
-				SlowDisplay("  受到了  ");
+				SlowDisplay(sarr[choosenum].suffix,0);
+				SlowDisplay(monster.name,0);
+				SlowDisplay("  受到了  ",0);
 				COLOR(sarr[choosenum].ele);
 				putarr(harm);
 				COLOR(7);
-				SlowDisplay("  点伤害!\n");
+				SlowDisplay("  点伤害!\n",0);
 				minusarr(monster.hp,harm);//减少怪物的hp
 
 				break;//攻击-跳出玩家回合
 
 
 			case 2:
-				SlowDisplay("要使用什么？");
+				SlowDisplay("要使用什么？",0);
 				puts("\n=============================================================================");
 				int i=0;
 				//struct Prop *head=&sl;
-				SlowDisplay("\n攻击道具：\n");
+				SlowDisplay("\n攻击道具：\n",0);
 				for(int gji=0,t=0; gji<50; gji++) {
 					if(gj[gji].havenum) {
 						parr[i]=&gj[gji];
@@ -1235,7 +1491,7 @@ PlayerRand:
 						if(t==lineL)printf("\n\n"),t=1;
 					}
 				}
-				SlowDisplay("\n防御道具：\n");
+				SlowDisplay("\n防御道具：\n",0);
 				for(int fyi=0,t=0; fyi<50; fyi++) {
 					if(fy[fyi].havenum) {
 						parr[i]=&fy[fyi];
@@ -1244,7 +1500,7 @@ PlayerRand:
 						if(t==lineL)printf("\n\n"),t=1;
 					}
 				}
-				SlowDisplay("\n回复道具：\n");
+				SlowDisplay("\n回复道具：\n",0);
 				for(int hfi=0,t=0; hfi<50; hfi++) {
 					if(hf[hfi].havenum) {
 						parr[i]=&hf[hfi];
@@ -1259,14 +1515,14 @@ PlayerRand:
 				scanf("%d",&choosenum);
 				if(choosenum<=-1&&choosenum>i) {
 					printf("………………\n");
-					SlowDisplay(waring_content);
+					SlowDisplay(waring_content,0);
 					system("cls");//清除控制台
 					goto PlayerRand;
 				}
 				puts("\n");
-				SlowDisplay(player->name);
-				SlowDisplay(" 使用了 ");
-				SlowDisplay(parr[choosenum]->name);
+				SlowDisplay(player->name,0);
+				SlowDisplay(" 使用了 ",0);
+				SlowDisplay(parr[choosenum]->name,0);
 				puts("!!\n");
 				switch(parr[choosenum]->type) {
 					case 2://攻击型道具
@@ -1274,12 +1530,12 @@ PlayerRand:
 
 						minusarr(harm,monster.defence);//计算最终伤害
 
-						SlowDisplay(monster.name);
-						SlowDisplay("  受到了  ");
+						SlowDisplay(monster.name,0);
+						SlowDisplay("  受到了  ",0);
 						COLOR(parr[choosenum]->ele);
 						putarr(harm);
 						COLOR(7);
-						SlowDisplay("  点伤害!\n");
+						SlowDisplay("  点伤害!\n",0);
 						minusarr(monster.hp,harm);//减少怪物的hp
 						parr[choosenum]->havenum-=1;
 						break;//判断物品类型-跳到使用物品
@@ -1287,17 +1543,17 @@ PlayerRand:
 					case 3://回复型道具
 						copyarr(hpplus,parr[choosenum]->num);
 						plusarr(player->hp,hpplus);
-						SlowDisplay(player->name);
-						SlowDisplay(" 回复了 ");
+						SlowDisplay(player->name,0);
+						SlowDisplay(" 回复了 ",0);
 						putarr(hpplus);
-						SlowDisplay("点血！\n");
+						SlowDisplay("点血！\n",0);
 						if(comparr(player->hp,player[1].hp)==1) {
 							copyarr(player->hp,player[1].hp);
-							SlowDisplay("回满了！\n");
+							SlowDisplay("回满了！\n",0);
 						} else {
-							SlowDisplay("现在有 ");
+							SlowDisplay("现在有 ",0);
 							putarr(player->hp);
-							SlowDisplay(" 点血量！\n");
+							SlowDisplay(" 点血量！\n",0);
 						}
 						parr[choosenum]->havenum-=1;
 						break;//判断物品类型-跳到使用物品
@@ -1308,62 +1564,62 @@ PlayerRand:
 
 
 			case 3:
-				SlowDisplay(player->name);
-				SlowDisplay(":\nhp:");
+				SlowDisplay(player->name,0);
+				SlowDisplay(":\nhp:",0);
 				putarr(player->hp);
 				printf("/");
 				putarr(player[1].hp);
-				SlowDisplay("\nhd:");
+				SlowDisplay("\nhd:",0);
 				putarr(player->hd);
 				printf("/");
 				putarr(player[1].hd);
-				SlowDisplay("\n攻击力:");
+				SlowDisplay("\n攻击力:",0);
 				putarr(player->attack);
-				SlowDisplay("\n防御力:");
+				SlowDisplay("\n防御力:",0);
 				putarr(player->defence);
-				SlowDisplay("\n:当前武器:");
+				SlowDisplay("\n:当前武器:",0);
 				printf("%s",player->attp->name);
-				SlowDisplay("\n:当前防具:");
+				SlowDisplay("\n:当前防具:",0);
 				printf("%s",player->defp->name);
-				SlowDisplay("\n:当前等级:");
+				SlowDisplay("\n:当前等级:",0);
 				putarr(player->lever);
 
 				printf("\n");
-				SlowDisplay(monster.name);
-				SlowDisplay(":\nhp:");
+				SlowDisplay(monster.name,0);
+				SlowDisplay(":\nhp:",0);
 				putarr(monster.hp);
 
-				SlowDisplay("\n攻击力:");
+				SlowDisplay("\n攻击力:",0);
 				putarr(monster.attack);
-				SlowDisplay("\n防御力:");
+				SlowDisplay("\n防御力:",0);
 				putarr(monster.defence);
-				printf("\n\n\n按任意键继续。。");
+				SlowDisplay("\n\n\n按任意键继续。。",0);
 				getchar();
 				system("cls");//清除控制台
 				goto PlayerRand;//查看-重新开始玩家回合
 			case 4:
 				if(random()<50) {
-					SlowDisplay("逃跑成功！耶！");
+					SlowDisplay("逃跑成功！耶！",0);
 					iniarr(monster.exp);
 					monster.exp[0]=1;//如果逃跑则没有经验
 					k=0;
 					//goto ENDATTACK;
 				} else {
-					SlowDisplay("逃跑失败！这下该怎么办啊啊啊啊啊！！\n");
+					SlowDisplay("逃跑失败！这下该怎么办啊啊啊啊啊！！\n",0);
 					break;//逃跑-跳出玩家回合
 				}
 			default:
 				printf("………………\n");
-				SlowDisplay(waring_content);
+				SlowDisplay(waring_content,0);
 				goto PlayerRand;
 		}
 		if(comparr(monster.hp,ablank)!=1) { //如果怪物被击败
-			SlowDisplay(monster.name);
-			SlowDisplay(" 被击败了！！\n");
+			SlowDisplay(monster.name,0);
+			SlowDisplay(" 被击败了！！\n",0);
 			if(random()<addpro) { //判断是否掉落物品
 				monster.prop->havenum+=1;
-				SlowDisplay("获得了 ");
-				SlowDisplay(monster.prop->name);
+				SlowDisplay("获得了 ",0);
+				SlowDisplay(monster.prop->name,0);
 				printf("！\n");
 				//printf("%d",monster.prop->havenum);
 			}
@@ -1377,8 +1633,8 @@ PlayerRand:
 		//下面是怪物的回合
 		if(k) {
 			if(random()<=escpro) {
-				SlowDisplay(monster.name);
-				SlowDisplay(" 逃跑了！\0");
+				SlowDisplay(monster.name,0);
+				SlowDisplay(" 逃跑了！\0",0);
 				iniarr(monster.exp);
 				monster.exp[0]=1;//如果逃跑则没有经验
 				break;
@@ -1403,31 +1659,31 @@ PlayerRand:
 				if(comparr(harm,fdef)!=1) { //如果防御太高则伤害为1
 					iniarr(harm);
 					harm[0]=1;
-					//printf("\n修正后\n");
+					
 				} else {
 					minusarr(harm,fdef);//计算伤害
 				}
 
-				SlowDisplay(monster.name);
-				SlowDisplay(" 使用了 ");
-				SlowDisplay(msnum->name);
-				SlowDisplay("!!\n\n");
-				SlowDisplay(player->name);
-				SlowDisplay("受到了 ");
+				SlowDisplay(monster.name,0);
+				SlowDisplay(" 使用了 ",0);
+				SlowDisplay(msnum->name,0);
+				SlowDisplay("!!\n\n",0);
+				SlowDisplay(player->name,0);
+				SlowDisplay("受到了 ",0);
 				putarr(harm);
-				SlowDisplay(" 点伤害！\n\n");
+				SlowDisplay(" 点伤害！\n\n",0);
 				minusarr(player->hp,harm);
 				//putarr(player->hp);printf("血量\n");
 			} else {
-				SlowDisplay(monster.name);
-				SlowDisplay("走神了！什么都没做！");
+				SlowDisplay(monster.name,0);
+				SlowDisplay("走神了！什么都没做！",0);
 			}
 			if(comparr(player->hp,ablank)!=1) { //玩家被击败
-				SlowDisplay(player->name);
-				SlowDisplay("被击败了！！\n");
+				SlowDisplay(player->name,0);
+				SlowDisplay("被击败了！！\n",0);
 				iniarr(player->hp);
 				player->hp[0]=1;
-				break;//结束战斗
+				return 0;//结束战斗
 			}
 		}
 
@@ -1435,11 +1691,11 @@ PlayerRand:
 	}
 
 	//ENDATTACK:
-	SlowDisplay("战斗结束！\n\n");
-	printf("\n\n按任意键继续。。");
+	SlowDisplay("战斗结束！\n\n",0);
+	SlowDisplay("\n\n按任意键继续。。",0);
 	getchar();
 	system("cls");//清除控制台
-
+	return 1;
 }
 
 void hotel(void) { //回满状态的函数，在旅馆等地点调用
@@ -1453,9 +1709,9 @@ void bag(void) { //察看背包及其它操作函数
 
 	while(k) {
 		system("cls");//清除控制台
-		SlowDisplay("\n背包内容：\n");
+		SlowDisplay("\n背包内容：\n",0);
 		puts("\n=============================================================================");
-		SlowDisplay("1.防具\t\t2.武器\t\t3.道具\t\t4.纪念品\t\t114514.点错了。。。。。\n\n");
+		SlowDisplay("1.防具\t\t2.武器\t\t3.道具\t\t4.纪念品\t\t114514.点错了。。。。。\n\n",0);
 		fflush(stdin);
 		choosenum=-1;
 		scanf("%d",&choosenum);
@@ -1465,11 +1721,11 @@ void bag(void) { //察看背包及其它操作函数
 			case -1:
 				system("cls");//清除控制台
 				printf("………………\n");
-				SlowDisplay(waring_content);
+				SlowDisplay(waring_content,0);
 				break;
 			case 1:
 				system("cls");//清除控制台
-				SlowDisplay("\n防具：\n");
+				SlowDisplay("\n防具：\n",0);
 				for(int fji=0,t=0; fji<50; fji++) {
 					if(fj[fji].havenum) {
 						parr[i]=&fj[fji];
@@ -1486,14 +1742,14 @@ void bag(void) { //察看背包及其它操作函数
 				fflush(stdin);
 				if(choosenum==-1||choosenum>fjnum) {
 					printf("………………\n");
-					SlowDisplay(waring_content);
+					SlowDisplay(waring_content,0);
 					break;
 				}
-				SlowDisplay(player[0].name);
-				SlowDisplay("将");
-				SlowDisplay(player[0].defp->name);
-				SlowDisplay("换成了");
-				SlowDisplay(parr[choosenum]->name);
+				SlowDisplay(player[0].name,0);
+				SlowDisplay("将",0);
+				SlowDisplay(player[0].defp->name,0);
+				SlowDisplay("换成了",0);
+				SlowDisplay(parr[choosenum]->name,0);
 				printf("!\n");
 				player[0].defp=parr[choosenum];
 				player[1]=player[0];
@@ -1501,7 +1757,7 @@ void bag(void) { //察看背包及其它操作函数
 				break;
 			case 2:
 				system("cls");//清除控制台
-				SlowDisplay("\n武器：\n");
+				SlowDisplay("\n武器：\n",0);
 				for(int wqi=0,t=0; wqi<50; wqi++) {
 					if(wq[wqi].havenum) {
 						parr[i]=&wq[wqi];
@@ -1518,21 +1774,21 @@ void bag(void) { //察看背包及其它操作函数
 				fflush(stdin);
 				if(choosenum==-1||choosenum>wqnum) {
 					printf("………………\n");
-					SlowDisplay(waring_content);
+					SlowDisplay(waring_content,0);
 					break;
 				}
-				SlowDisplay(player[0].name);
-				SlowDisplay("将");
-				SlowDisplay(player[0].attp->name);
-				SlowDisplay("换成了");
-				SlowDisplay(parr[choosenum]->name);
+				SlowDisplay(player[0].name,0);
+				SlowDisplay("将",0);
+				SlowDisplay(player[0].attp->name,0);
+				SlowDisplay("换成了",0);
+				SlowDisplay(parr[choosenum]->name,0);
 				printf("!\n");
 				player[0].attp=parr[choosenum];
 				player[1]=player[0];
 				break;
 			case 3:
 				system("cls");//清除控制台
-				SlowDisplay("\n攻击道具：\n");
+				SlowDisplay("\n攻击道具：\n",0);
 				for(int gji=0,t=0; gji<50; gji++) {
 					if(gj[gji].havenum) {
 						parr[i]=&gj[gji];
@@ -1542,7 +1798,7 @@ void bag(void) { //察看背包及其它操作函数
 					}
 				}
 				int gjnum=i-1;
-				SlowDisplay("\n防御道具：\n");
+				SlowDisplay("\n防御道具：\n",0);
 				for(int fyi=0,t=0; fyi<50; fyi++) {
 					if(fy[fyi].havenum) {
 						parr[i]=&fy[fyi];
@@ -1552,7 +1808,7 @@ void bag(void) { //察看背包及其它操作函数
 					}
 				}
 				int fynum=i;
-				SlowDisplay("\n回复道具：\n");
+				SlowDisplay("\n回复道具：\n",0);
 				for(int hfi=0,t=0; hfi<50; hfi++) {
 					if(hf[hfi].havenum) {
 						parr[i]=&hf[hfi];
@@ -1562,7 +1818,7 @@ void bag(void) { //察看背包及其它操作函数
 					}
 				}
 				int hfnum=i;
-				SlowDisplay("\n您想使用啥？先说好非战斗状态不能使用攻击和防御道具哦！\n");
+				SlowDisplay("\n您想使用啥？先说好非战斗状态不能使用攻击和防御道具哦！\n",0);
 				printf("\n");
 
 				fflush(stdin);
@@ -1571,40 +1827,40 @@ void bag(void) { //察看背包及其它操作函数
 				fflush(stdin);
 				if(choosenum<=-1||choosenum>hfnum) {
 					printf("………………\n");
-					SlowDisplay(waring_content);
+					SlowDisplay(waring_content,0);
 					usleep(1500*1000);
 					break;
 				}
 				if(choosenum>=0&&choosenum<=gjnum) {
-					SlowDisplay("哈？你是不是没看见我说的啥？指望攻击道具虚空索敌？\n");
+					SlowDisplay("哈？你是不是没看见我说的啥？指望攻击道具虚空索敌？\n",0);
 					usleep(1500*1000);
 				} else if(choosenum<fynum) {
-					SlowDisplay("…………芳斯塔夫说过：叠甲死路一条。\n");
+					SlowDisplay("…………芳斯塔夫说过：叠甲死路一条。\n",0);
 					usleep(1500*1000);
 
 				} else if(choosenum<hfnum) {
 					copyarr(hpplus,parr[choosenum]->num);
 					plusarr(player[0].hp,hpplus);
 					parr[choosenum]->havenum-=1;
-					SlowDisplay(player[0].name);
-					SlowDisplay("使用了");
-					SlowDisplay(parr[choosenum]->name);
-					SlowDisplay(" ,回复了 ");
+					SlowDisplay(player[0].name,0);
+					SlowDisplay("使用了",0);
+					SlowDisplay(parr[choosenum]->name,0);
+					SlowDisplay(" ,回复了 ",0);
 					putarr(hpplus);
-					SlowDisplay("点血！\n");
+					SlowDisplay("点血！\n",0);
 					if(comparr(player[0].hp,player[1].hp)==1) {
 						copyarr(player[0].hp,player[1].hp);
-						SlowDisplay("回满了！\n");
+						SlowDisplay("回满了！\n",0);
 					}
-					SlowDisplay("现在有 ");
+					SlowDisplay("现在有 ",0);
 					putarr(player[0].hp);
-					SlowDisplay(" 点血量！\n");
+					SlowDisplay(" 点血量！\n",0);
 				}
 
 				break;
 			case 4: {
 				system("cls");//清除控制台
-				SlowDisplay("用WASD或方向键选择物品,Q退出：\n");
+				SlowDisplay("用WASD或方向键选择物品,Q退出：\n",0);
 				int i=0,t=1;
 				for(int si=0; si<50; si++) {
 					if(souvenir[si].have) {
@@ -1642,12 +1898,16 @@ void bag(void) { //察看背包及其它操作函数
 					t=1;
 					puts("\n=============================================================================");
 					if(soarr[choosenum]->read)printf("可阅读(R)。\n");
+					if(soarr[choosenum]->f)printf("可运行(P)。\n");
 					printf("%s\n",soarr[choosenum]->intro);
 					printf("\n");
-					if(kg==2) {
-						MS=10;
-						SlowDisplay(soarr[choosenum]->content);
+					if(kg==2&&soarr[choosenum]->read) {
+						if(soarr[choosenum]->ms)MS=soarr[choosenum]->ms;
+						SlowDisplay(soarr[choosenum]->content,0);
 						MS=DEFAULT_MS;
+					}
+					if(kg==4&&soarr[choosenum]->f) {
+						soarr[choosenum]->function();
 					}
 				}
 
@@ -1672,26 +1932,98 @@ void bag(void) { //察看背包及其它操作函数
 
 void conversation(struct Player *player,struct NPC *npc) {
 	struct ConNode *con=npc->con;
-	printf("%s:",npc->name);
-	SlowDisplay(con->content);
+LOOP:
+	//if(con->speaker)printf("%s:",npcs[con->speaker].name);
+	SlowDisplay(con->content,0);
 	if(con->ifchoose) {
 		int kg=1;
 		choosenum=0;
 		while(kg) {
 			system("cls");
-			printf("%s:",npc->name);
-			printf("%s\n",con->content);
+			//SlowDisplay(npc->name,1);
+			SlowDisplay(con->content,1);
 			int i=0;
 			printf("\n按回车确定选择：\n");
 			puts("\n=============================================================================");
+
 			for(i=0; i<con->ifchoose; i++) {
 				if(i==choosenum)COLOR(240);
 				printf("%d:%s\t",i,con->chooselist[i]);
 				COLOR(7);
 			}
+			fflush(stdin);
 			kg=takechoose(i);
+			if(kg==3) {
+				system("cls");
+				con=&conversations[con->next[choosenum]];
+				goto LOOP;
+			}
 		}
 
+	} else {
+		if(!con->next[0]) {
+			con=&conversations[con->next[0]];
+			goto LOOP;
+
+		}
+
+	}
+	if(con->start_task) {
+		if(checktask(&tasks[con->start_task])==1) {
+			SlowDisplay("\n已接取任务：",0);
+			SlowDisplay(tasks[con->start_task].name,0);
+			printf(" !");
+			tasks[con->start_task].start=1;
+
+		} else if(checktask(&tasks[con->start_task])==2) {
+			SlowDisplay("该任务以接取。当你看到这句话时，说明我搞砸了什么。看到此条消息请联系作者，并记下下列信息：\n",1);
+			printf("ConNode content:%s\ntask number:%d\nchecktask result:2",con->content,con->start_task);
+		} else if(checktask(&tasks[con->start_task])==3) {
+			SlowDisplay("该任务以完成。当你看到这句话时，说明我搞砸了什么。看到此条消息请联系作者，并记下下列信息：\n",1);
+			printf("ConNode content:%s\ntask number:%d\nchecktask result:3",con->content,con->start_task);
+		} else {
+			SlowDisplay("未满足接取条件：\n",0);
+			SlowDisplay("需要：\n",0);
+			struct Prop *task_prop;
+
+			task_prop=index2prop(tasks[con->start_task].condition[0]);
+
+			if(task_prop->havenum<tasks[con->start_task].condition[3]) {
+
+				SlowDisplay(task_prop->name,0);
+				printf(": %d/%d 个\n",task_prop->havenum,tasks[con->start_task].condition[3]);
+			}
+			if(!souvenir[tasks[con->start_task].condition[1]].have)
+				SlowDisplay(souvenir[tasks[con->start_task].condition[1]].name,0);
+			printf("(未获得)\n");
+		}
+		wait();
+	}
+	if(con->check_task) {
+		int kg=checktask(&tasks[con->check_task]);
+		if(kg==3) {
+			struct Task *change_task=&tasks[con->check_task];//这一步实际上没必要，但是为了方便阅读我就写了
+			//下面发放奖励
+			index2prop(change_task->give_prop)->havenum+=change_task->give_prop_num;
+			souvenir[change_task->give_souvenir].have=1;
+			plusarr(change_task->give_exp,player[0].exp);
+			plusarr(change_task->give_gold,gold);
+			con=&conversations[con->finish_next_con[1]];
+			leverUP(0);
+			npc->con=&conversations[npc->nomal_con];//这个任务结束了，将NPC的对话起点改回去
+			check_npc_task(npc);
+			goto LOOP;
+		}
+	}
+	if(con->fight){
+		int kg=attackact(&player[0],monsters[con->fight]);
+		if(con->fight_continue||kg==1){	
+			if(con->next[0]){
+				con=&conversations[con->next[0]];
+				goto LOOP;
+			}
+			
+		}
 	}
 
 
@@ -1782,7 +2114,14 @@ int takechoose(int i) {
 					return 3;
 					break;
 				}
-
+				case 'P': { //运行
+					return 4;
+					break;
+				}
+				case 'p': {
+					return 4;
+					break;
+				}
 
 				/*在Windows系统中，当使用 _getch() 函数（来自 conio.h）来读取按键时，
 				一些特殊按键（如方向键和功能键）会生成两个连续的字符码。
@@ -1871,72 +2210,72 @@ int takechoose(int i) {
 					}
 					break;
 				}
-				case '0':{
+				case '0': {
 					kg=0;
 					choosenum=choosenum*10;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '1':{
+				case '1': {
 					kg=0;
 					choosenum=choosenum*10+1;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '2':{
+				case '2': {
 					kg=0;
 					choosenum=choosenum*10+2;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '3':{
+				case '3': {
 					kg=0;
 					choosenum=choosenum*10+3;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '4':{
+				case '4': {
 					kg=0;
 					choosenum=choosenum*10+4;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '5':{
+				case '5': {
 					kg=0;
 					choosenum=choosenum*10+5;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '6':{
+				case '6': {
 					kg=0;
 					choosenum=choosenum*10+6;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '7':{
+				case '7': {
 					kg=0;
 					choosenum=choosenum*10+7;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '8':{
+				case '8': {
 					kg=0;
 					choosenum=choosenum*10+8;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case '9':{
+				case '9': {
 					kg=0;
 					choosenum=choosenum*10+9;
 					if(choosenum>i-1)choosenum=i-1;
 					break;
 				}
-				case 8:{//删除键
+				case 8: { //删除键
 					kg=0;
 					choosenum/=10;
 					break;
 				}
-				
+
 
 				default:
 					break;
@@ -1949,8 +2288,145 @@ int takechoose(int i) {
 
 
 
+int checktask(struct Task *task) {
+//检查任务函数，检查任务是否满足开始条件(返回1/0)、
+//					任务是否开启(返回2)、
+//					任务是否完成(返回3)
+//优先级从前往后升高
+
+	int result=1;
+	if(task->start) {
+		result=2;
+		goto FINISH;
+	}
+	if(task->finish) {
+		result=3;
+		goto END;
+	}
+
+	//检查开启条件
+	//检查道具
+	struct Prop *task_prop;
+
+	task_prop=index2prop(task->condition[0]);
+
+	if(task_prop->havenum<task->condition[3])result=0;
+
+	//检查纪念品
+	if(!souvenir[task->condition[1]].have)result=0;
+	//检查任务
+	if(!tasks[task->condition[2]].finish)result=0;
+FINISH://检查是否完成
+	if(result==2) {
+		result=3;
+		//子任务是否全部完成
+		if(task->sonnum) {
+			int f_sonnum=0;//记录完成了几个子任务
+			for(int i=0; i<task->sonnum; i++) {
+				if(checktask(&tasks[task->son[i]])==3)f_sonnum+=1;
+			}
+			if(f_sonnum<task->f_son)result=2;
+		}
+		//道具
+
+		task_prop=index2prop(task->f_condition[0]);
+
+		if(task_prop->havenum<task->f_condition[3])result=2;
+		//纪念品
+		if(!souvenir[task->condition[1]].have)result=2;
+
+	}
 
 
+END:
+	return result;
+}
+
+void tasktree(void) {
+
+
+	for(int i=1; i<500; i++) {
+		struct Task task=tasks[i];
+		if(task.father)continue;//如果这个任务是一个子任务则跳过
+		if(task.start&&!task.finish) { //检查任务是否开始以及是否完成
+
+			COLOR(15);
+			SlowDisplay("||--",1);
+			SlowDisplay(task.name,1);
+			SlowDisplay("\n|     |--",1);
+			COLOR(7);
+			SlowDisplay(task.intro,1);
+			printf("\n");
+			COLOR(15);
+			if(task.sonnum) {
+				for(int i=0; i<task.sonnum; i++) {
+					struct Task sontask=tasks[task.son[i]];
+					if(sontask.start&&sontask.see) { //检查任务是否开始以及是否可见
+
+						COLOR(15);
+						if(sontask.finish)COLOR(8);
+						SlowDisplay("|  ||--",1);
+						SlowDisplay(sontask.name,1);
+						SlowDisplay("\n|  |     |--",1);
+						COLOR(7);
+						SlowDisplay(sontask.intro,1);
+						printf("\n");
+						COLOR(15);
+					}
+				}
+			}
+
+		}
+	}
+	COLOR(7);
+	wait();
+	system("cls");
+}
+
+void wait(void) {
+	fflush(stdin);
+	COLOR(8);
+	printf("\n\n\n(按任意键继续……)");
+	while(1) {
+		if(_kbhit()) {
+			_getch();
+			fflush(stdin);
+			printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b                       \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
+			break;
+		}
+	}
+	COLOR(7);
+}
+
+struct Prop *index2prop(int n) {
+//通过物品编号返回结构体
+	struct Prop *reprop;
+
+	if(n<50)reprop=&fj[n];
+	else if(n<100)reprop=&wq[n-50];
+	else if(n<150)reprop=&gj[n-100];
+	else if(n<200)reprop=&hf[n-150];
+	else if(n<250)reprop=&fy[n-200];
+
+	return reprop;
+}
+
+void check_npc_task(struct NPC *npc){
+	//检查该npc所有相关任务是否完成，并对该npc的对话起点做出相应修改。
+	int tnum=npc->task[0];//读取这个NPC有几个任务
+	for(int i=1;i<=tnum;i++){
+		int num=npc->task[i];//记录每个任务的编号
+		int kg=checktask(&tasks[num]);//检查这些任务完成情况 
+		if(kg==1){
+			npcs[tasks[num].npc_s].con=&conversations[tasks[num].con_s];//更改对话起点
+		}
+		if(kg==2||kg==3){
+				npcs[tasks[num].npc_f].con=&conversations[tasks[num].con_f];//更改对话起点
+		}
+		
+		
+	}
+}
 
 
 
