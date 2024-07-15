@@ -36,7 +36,7 @@
 struct Prop { //道具结构体
 	int n;//道具编号0-49为防具，50-99为武器，100-149为攻击道具，150-199为回复道具，200-249为防御道具
 	char *name;
-	int num[LEN];//道具的数值，如增加的防御力、攻击力，或造成的伤害、回复的血量等等
+	long num;//道具的数值，如增加的防御力、攻击力，或造成的伤害、回复的血量等等
 	int type;//道具类型，0为武器，1为防具，2为攻击道具，3为回复道具，4为物品材料
 	int ele;//如果是伤害，伤害的元素类型
 	int havenum;//拥有的数量
@@ -53,26 +53,40 @@ struct Souvenir { //纪念品结构体
 	int ms;//输出内容时间隔，不指明时和DEFAULT_MS一样。
 };
 
+struct attribute {//附加属性结构体
+	float crit_rate;//暴击率
+	float crit_damage;//暴击伤害倍率
+	long damage;//伤害值
+	float damage_rate;//伤害提高率
+
+};
+
 struct Player { //玩家结构体
 	char name[200];//结构体定义的时候不能被初始化
-	int hp[LEN];//血
-	int hd[LEN];//蓝
-	int attack[LEN];//攻击力
-	int defence[LEN];//防御力
+	long hp;//血
+	long f_hp;//血上限
+	long hd;//蓝
+	long f_hd;
+	long attack;//当前攻击力
+	long n_attack;//平时攻击力;用于消除战斗中使用的道具对攻击力的影响
+	long defence;//当前防御力
+	long n_defence;
 	int miss;//敏捷，即闪避概率
+	int n_miss;
 	int sp[LEN];//技能列表
-	int lever[LEN];//等级
+	long lever;//等级
 	int exp[LEN];//经验
 	int lexp[LEN];//升级所需的经验
 	struct Prop *defp;//防御道具结构体
 	struct Prop *attp;//武器
+	int team;//当前是否在队伍里
 };
 
 struct Monster { //怪物结构体
 	char *name;
-	int hp[LEN];
-	int attack[LEN];
-	int defence[LEN];
+	long hp;
+	long attack;
+	long defence;
 	int miss;
 	struct Skill* snum[5];//技能
 	int pro;//发动技能的概率
@@ -82,18 +96,18 @@ struct Monster { //怪物结构体
 	int g[LEN];//怪物掉落的金币
 };
 
-struct Egroup{//敌群结构体
+struct Egroup { //敌群结构体
 	char *name;
 	int num;//怪物的数量
 	//char *mname[5];//敌群内每个怪物的名字
 	int monster[5];//每个怪物对应的编号
-	
+
 };
 
 struct BUFF {
 	int n;//buff会给所有者挂上相应的元素
 	double resistance[7];//buff会给相应元素增加减少对应抗性，0物理，1火，2毒，3水，4冰，5雷, 6特殊
-	int gain[4][LEN];//buff对属性的影响，0攻击，1防御，2生命，3速度
+	long gain[4];//buff对属性的影响，0攻击，1防御，2生命，3速度
 };
 
 struct Map { //地图结构体
@@ -108,12 +122,12 @@ struct Skill { //技能结构体
 	int num;//编号
 	char *name;//技能名称
 	char *suffix;//后缀，比如“就因为他做得到！”
-	int sp[LEN];//消耗蓝量
-	int damage;//攻击力倍率
+	long sp;//消耗蓝量
+	float damage;//攻击力倍率
 	int boo;//是否对血量有影响，加血1，减血-1，没有影响0
-	int hp[LEN];//一些技能会增加或消耗血量
+	long hp;//一些技能会增加或消耗血量
 	int ele;//元素种类，15物理，12火，10毒，9水，3冰，5雷, 4特殊
-	int stu;//是否习得该技能
+	//int stu;//是否习得该技能
 	char *intro;//技能描述
 };
 
@@ -137,8 +151,8 @@ struct Task {
 	int npc_f;//这个任务找谁提交
 	int con_s;//接取这个任务第一句话是什么（当这个任务可被接取时，将上述npc的对话节点改成这个
 	int con_f;//提交这个任务第一句话是什么
-	int start;//判断这个任务有没有开始
-	int finish;//判断这个任务有没有完成
+	int start;//判断这个任务有没有开始（指有没有被接取）
+	int finish;//判断这个任务有没有完成（有没有被提交，被提交的任务不会被再次检查）
 	int father;//该任务是否是某个大型任务的子任务（用于输出任务树时不会重复输出子任务以及完成子任务时检查父任务是否完成）
 	int sonnum;//这个任务有几个子任务
 	int son[5];//子任务的编号
@@ -178,7 +192,7 @@ struct Prop fj[50]= {
 		//初始道具，啥也没有
 		.n=0,
 		.name="无\0",
-		.num={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=0,
 		.type=1,
 		.ele=0,
 		.havenum=1,
@@ -187,7 +201,7 @@ struct Prop fj[50]= {
 	{
 		.n=1,
 		.name="布衣\0",
-		.num={0,5,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=50,
 		.type=1,
 		.ele=0,
 		.havenum=1,
@@ -196,7 +210,7 @@ struct Prop fj[50]= {
 	{
 		.n=2,
 		.name="皮甲\0",
-		.num={0,0,2,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=200,
 		.type=1,
 		.ele=0,
 		.havenum=1,
@@ -205,7 +219,7 @@ struct Prop fj[50]= {
 	{
 		.n=3,
 		.name="链甲\0",
-		.num={0,0,5,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=500,
 		.type=1,
 		.ele=0,
 		.havenum=1,
@@ -214,7 +228,7 @@ struct Prop fj[50]= {
 	{
 		.n=4,
 		.name="板甲\0",
-		.num={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+		.num=1000,
 		.type=1,
 		.ele=0,
 		.havenum=2,
@@ -223,7 +237,7 @@ struct Prop fj[50]= {
 	{
 		.n=5,
 		.name="装甲\0",
-		.num={0,0,0,5,0,0,0,0,0,0,0,0,0,0,0},
+		.num=5000,
 		.type=1,
 		.ele=0,
 		.havenum=2,
@@ -232,7 +246,7 @@ struct Prop fj[50]= {
 	{
 		.n=6,
 		.name="你五年前丢失的睡衣\0",
-		.num={0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+		.num=1000000,
 		.type=1,
 		.ele=0,
 		.havenum=111,
@@ -241,7 +255,7 @@ struct Prop fj[50]= {
 	{
 		.n=7,
 		.name="ERR\\OR@\\#$\\%sd!sdFAS!@\\\\\0",
-		.num={0,0,0,0,0,0,0,0,0,0,0,0,0,0,9},
+		.num=999999999,
 		.type=1,
 		.ele=0,
 		.havenum=1,
@@ -261,7 +275,7 @@ struct Prop wq[50]= {
 		//初始道具，啥也没有
 		.n=50,
 		.name="无\0",
-		.num={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=0,
 		.type=0,
 		.ele=0,
 		.havenum=1,
@@ -270,7 +284,7 @@ struct Prop wq[50]= {
 	{
 		.n=51,
 		.name="铁剑\0",
-		.num={0,0,2,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=200,
 		.type=0,
 		.ele=15,
 		.havenum=1,
@@ -279,7 +293,7 @@ struct Prop wq[50]= {
 	{
 		.n=52,
 		.name="黑缨枪\0",
-		.num={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=100,
 		.type=1,
 		.ele=15,
 		.havenum=1,
@@ -288,7 +302,7 @@ struct Prop wq[50]= {
 	{
 		.n=53,
 		.name="ERROR#$warRE@#er%^EVE\0",
-		.num={0,0,0,0,0,0,0,0,0,0,0,0,0,0,9},
+		.num=999999999,
 		.type=1,
 		.ele=4,
 		.havenum=1,
@@ -305,7 +319,7 @@ struct Prop gj[50]= {
 	{
 		.n=100,
 		.name="手雷\0",
-		.num={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+		.num=1000,
 		.type=2,
 		.ele=12,
 		.havenum=5,
@@ -314,7 +328,7 @@ struct Prop gj[50]= {
 	{
 		.n=101,
 		.name="毒镖\0",
-		.num={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=100,
 		.type=2,
 		.ele=10,
 		.havenum=3,
@@ -323,7 +337,7 @@ struct Prop gj[50]= {
 	{
 		.n=102,
 		.name="粑粑\0",
-		.num={9,9,9,9,0,0,0,0,0,0,0,0,0,0,0},
+		.num=9999,
 		.type=2,
 		.ele=4,
 		.havenum=6,
@@ -340,7 +354,7 @@ struct Prop hf[50]= {
 	{
 		.n=150,
 		.name="回血包\0",
-		.num={0,0,5,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=500,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -349,7 +363,7 @@ struct Prop hf[50]= {
 	{
 		.n=151,
 		.name="草药\0",
-		.num={0,0,7,0,0,0,0,0,0,0,0,0,0,0,0},
+		.num=700,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -358,7 +372,7 @@ struct Prop hf[50]= {
 	{
 		.n=152,
 		.name="四方和平\0",
-		.num={0,0,5,1,0,0,0,0,0,0,0,0,0,0,0},
+		.num=1500,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -367,7 +381,7 @@ struct Prop hf[50]= {
 	{
 		.n=153,
 		.name="云南白药\0",
-		.num={0,0,0,2,0,0,0,0,0,0,0,0,0,0,0},
+		.num=2000,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -376,7 +390,7 @@ struct Prop hf[50]= {
 	{
 		.n=154,
 		.name="红药水\0",
-		.num={0,0,5,2,0,0,0,0,0,0,0,0,0,0,0},
+		.num=2500,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -385,7 +399,7 @@ struct Prop hf[50]= {
 	{
 		.n=155,
 		.name="元素瓶\0",
-		.num={0,0,0,5,0,0,0,0,0,0,0,0,0,0,0},
+		.num=3500,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -394,7 +408,7 @@ struct Prop hf[50]= {
 	{
 		.n=156,
 		.name="核子可乐\0",
-		.num={0,0,5,5,0,0,0,0,0,0,0,0,0,0,0},
+		.num=5500,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -403,7 +417,7 @@ struct Prop hf[50]= {
 	{
 		.n=157,
 		.name="洗手液\0",
-		.num={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+		.num=10000,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -412,7 +426,7 @@ struct Prop hf[50]= {
 	{
 		.n=158,
 		.name="凤凰尾巴\0",
-		.num={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+		.num=10000,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -421,7 +435,7 @@ struct Prop hf[50]= {
 	{
 		.n=159,
 		.name="绿色星星\0",
-		.num={0,0,5,9,1,0,0,0,0,0,0,0,0,0,0},
+		.num=19500,
 		.type=3,
 		.ele=12,
 		.havenum=5,
@@ -688,7 +702,7 @@ struct Souvenir souvenir[50]= {
 		.name="机器之花",
 		.have=1,
 		.read=1,
-		.intro="曾戴在少女头上的铁质装饰，现在永远与她的父亲呆在了一起。\n【她不是为埃瓦德而生的哈达莉，她只是哈达莉而已。】",
+		.intro="曾戴在少女头上的铁质装饰，现在永远与她的父亲呆在了一起。\n\"她不是为埃瓦德而生的哈达莉，她只是哈达莉而已。\"",
 		.ms=40,
 		.content="\
 		\\.\\.【谢谢……\\.\\.你是我的所有者吗？】\n\
@@ -738,15 +752,15 @@ struct Souvenir souvenir[50]= {
 		\\.\\.【我会教你的。教你怎么在这个世界上生存下去，而且是免费的】\n\
 		\\.\\.【刚才我就一直在想。你也许只是把那群人的成果据为了己有。跟着你，可能会有更痛苦的事在等着我。\n\t\t\\.这让我很害怕】\n\
 		\\.\\.【……抱歉，接下来我要讲一句恶棍爱说的标准合词了\\.\\./你都生下来了，就别想着还能死得轻松了/】\n\
-		\\.\\.【鸣，地狱】\n\
+		\\.\\.【呜，地狱】\n\
 		\\.\\.【不过，如果说有一个方法可以使你轻松一些的话……那就是积累经验让自己更加强大】\n\
 		\\.\\.【强大……?】\n\
 		\\.\\.【心灵变得足够强大，就能坦然面对过去害怕的事情了。\\.把1比9逆转为9比1也是有可能的】\n\
 		\\.\\.【…………那在我变强大之前，谁会来保护我呢？】\n\
 		\\.\\.【所以说我会嘛】\n\
 		\\.\\.【为什么？这对你有任何好处吗？】\n\
-		\\.\\.【首先，让大家知道了传说中的Ae型真实存在，有一部分原因在于我。我稍微感到了一点点的责任。】\n\
-		\\.\\.【如果由于我的原因,导致有孩子受到了奴隶般的对待，我会想去把他救出来。而且这也能提高我爸爸的声誉】\n\
+		\\.\\.【首先，让大家知道了传说中的Ae型真实存在，有一部分原因在于我。我稍微感到了一点点的责任。\n\
+		\\.\\.如果由于我的原因,导致有孩子受到了奴隶般的对待，我会想去把他救出来。而且这也能提高我爸爸的声誉】\n\
 		\\.\\.【你的父亲……那么你是人类呀】\n\
 		\\.\\.【不是，我是Ae型仿生人，和你一样】\n\
 		\\.\\.【…………嗯？】\n\
@@ -772,8 +786,8 @@ struct Souvenir souvenir[50]= {
 		\\.\\.【你可真实在呀，这也蛮重要的就是了】\n\
 		\\.\\.【那，过来吧】\n\
 		/*菲莉娅伸出了手。*/\n\
-		\\.\\.\\.\\./*这位刚刚诞生的名为普罗菲的少女，身体猛地往后缩了一下。*/\n\
-		\\.\\.\\.\\.\\.\\.\\.\\.\n\n\t\t/*她鼓起了所有的勇气，将手指缓缓地乘上了那只手。*/",
+		\\.\\.\\.\\./*这位刚刚诞生的名为普罗菲的少女，身体猛地往后缩了一下。*/\n\n\n\t\t\
+		\\.\\.\\.\\.\\.\\.\\.\\./*她鼓起了所有的勇气，将手指缓缓地乘上了那只手。*/",
 	},
 };
 
@@ -785,34 +799,84 @@ struct Souvenir souvenir[50]= {
 
 
 /*------------初始化玩家------------------*/
-struct Player player[2]= {
+struct Player players[4]= {
 	{
 		.name="文止墨\0",
-		.hp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
-		.hd={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
-		.attack={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
-		.defence={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=1000,
+		.f_hp=1000,
+		.hd=1000000,
+		.f_hd=1000000,
+		.attack=100,
+		.n_attack=100,
+		.defence=100,
+		.n_defence=100,
 		.miss=10,
-		.sp={0,1,2,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
-		.lever={1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.n_miss=10,
+		.sp={0,1,2,3,4,5,0,0,0,0,0,0,0,0,0},
+		.lever=1,
 		.exp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
 		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
+		.team=1,
 	},
 	{
-		//这是记录当前等级满状态的各项数值
-		.name="文止墨\0",
-		.hp={0,0,0,1,1,0,0,0,0,0,0,0,0,0,0},
-		.hd={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
-		.attack={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
-		.defence={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.name="小睿孩\0",
+		.hp=1000,
+		.f_hp=1000,
+		.hd=1000000,
+		.f_hd=1000000,
+		.attack=100,
+		.n_attack=100,
+		.defence=100,
+		.n_defence=100,
 		.miss=10,
-		.sp={0,1,2,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
-		.lever={1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.n_miss=10,
+		.sp={0,1,2,3,4,5,0,0,0,0,0,0,0,0,0},
+		.lever=1,
 		.exp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
+		.team=1,
+	},
+	{
+		.name="小苏苏\0",
+		.hp=1000,
+		.f_hp=1000,
+		.hd=1000000,
+		.f_hd=1000000,
+		.attack=100,
+		.n_attack=100,
+		.defence=100,
+		.n_defence=100,
+		.miss=10,
+		.n_miss=10,
+		.sp={0,1,2,3,4,5,0,0,0,0,0,0,0,0,0},
+		.lever=1,
+		.exp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
+		.team=1,
+	},
+	{
+		.name="花落叶相随\0",
+		.hp=1000,
+		.f_hp=1000,
+		.hd=1000000,
+		.f_hd=1000000,
+		.attack=100,
+		.n_attack=100,
+		.defence=100,
+		.n_defence=100,
+		.miss=10,
+		.n_miss=10,
+		.sp={0,1,2,3,4,5,0,0,0,0,0,0,0,0,0},
+		.lever=1,
+		.exp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
+		.team=1,
+	},
 
-	}
 
 };
 
@@ -820,71 +884,77 @@ struct Player player[2]= {
 
 
 struct Skill skill_list[20]= {
-	{//0
+	{
+		//0
 		.num=1,
 		.name="弹跳碰撞\0",
 		.suffix="\n\0",
-		.sp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.sp=0,
 		.damage=1,
 		.boo=0,
-		.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=0,
 		.ele=15,
-		.stu=1,
+		//.stu=1,
 	},
-	{//1
+	{
+		//1
 		.num=1,
 		.name="弹跳碰撞\0",
 		.suffix="\n\0",
-		.sp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.sp=0,
 		.damage=1,
 		.boo=0,
-		.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=0,
 		.ele=15,
-		.stu=1,
+		//.stu=1,
 	},
-	{//2
+	{
+		//2
 		.num=2,
 		.name="[Error] conflicting types for 'attackact'\0",
 		.suffix="\n\0",
-		.sp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.sp=0,
 		.damage=2,
 		.boo=0,
-		.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=0,
 		.ele=4,
-		.stu=1,
+		//.stu=1,
 	},
-	{//3
+	{
+		//3
 		.num=3,
 		.name="爆炎术\0",
 		.suffix="\n\0",
-		.sp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+		.sp=1000,
 		.damage=1,
 		.boo=0,
-		.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=0,
 		.ele=12,
-		.stu=1,
+		//.stu=1,
 	},
-	{//4
+	{
+		//4
 		.num=4,
 		.name="背摔\0",
 		.suffix="就因为他做得到！\n\0",
-		.sp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.sp=0,
 		.damage=1,
 		.boo=0,
-		.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=0,
 		.ele=12,
-		.stu=1,
+		//.stu=1,
 	},
-	{//5
+	{
+		//5
 		.num=4,
 		.name="吞梦\0",
 		.suffix="是谁在远处呼唤？\n\0",
-		.sp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.sp=0,
 		.damage=1,
 		.boo=0,
-		.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=0,
 		.ele=12,
-		.stu=1,
+		//.stu=1,
 	},
 
 
@@ -897,33 +967,33 @@ struct Monster monsters[100]= {
 	{
 		//0
 		.name="史莱姆\0",
-		.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
-		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=100,//初始100血
+		.attack=10,
+		.defence=10,
 		.snum=&skill_list[1],
 		.pro=90,
-		.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.exp={0,0,1},
 		.v="跳了过来\0",
 
 	},
 	{
 		//1
 		.name="史莱姆\0",
-		.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
-		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=100,//初始100血
+		.attack=10,
+		.defence=10,
 		.snum=&skill_list[1],
 		.pro=90,
-		.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+		.exp={0,0,1},
 		.v="跳了过来\0",
 
 	},
 	{
 		//2
 		.name="ERROR怪\0",
-		.hp={0,0,0,0,0,0,0,9,9,9,9,9,9,9,9},
-		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=999999999,
+		.attack=10,
+		.defence=10,
 		.snum=&skill_list[2],
 		.pro=50,
 		.exp={0,0,0,2,0,0,0,0,0,0,0,0,0,0},
@@ -933,9 +1003,9 @@ struct Monster monsters[100]= {
 	{
 		//1
 		.name="艾瑟拉\0",
-		.hp={0,0,1,1,0,0,0,0,0,0,0,0,0,0,0},//初始100血
-		.attack={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
-		.defence={0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.hp=10000,
+		.attack=10,
+		.defence=10,
 		.snum=&skill_list[5],
 		.pro=90,
 		.exp={0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -948,9 +1018,9 @@ struct Monster monsters[100]= {
 
 struct Monster monster= {
 	.name="\0",
-	.hp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	.attack={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	.defence={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	.hp=0,
+	.attack=0,
+	.defence=0,
 	.pro=0,
 	.exp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 	.v="\0",
@@ -1199,7 +1269,7 @@ int takechoose(int i);
 //数字输入时，按删除键执行choosenum/10,即回退一位数字。
 
 int checktask(struct Task *task);
-//检查任务函数，检查任务是否满足开始条件(返回1/0)、任务是否开启(返回2)、任务是否完成(返回3)
+//检查任务函数，检查任务是否满足开始条件(返回1/0)、任务是否开启(返回2)、任务是否完成(返回3)、任务是否结束(返回4)
 //优先级从前往后升高
 
 void wait(void);
@@ -1240,8 +1310,14 @@ int main() {
 	iniarr(ablank);
 	iniarr(gold);
 	/*初始化玩家道具*/
-	player[0].defp=&fj[0];
-	player[0].attp=&wq[0];
+	players[0].defp=&fj[0];
+	players[0].attp=&wq[0];
+	players[1].defp=&fj[0];
+	players[1].attp=&wq[0];
+	players[2].defp=&fj[0];
+	players[2].attp=&wq[0];
+	players[3].defp=&fj[0];
+	players[3].attp=&wq[0];
 	/*初始化怪物掉落物*/
 	monsters[1].prop=&wq[2];
 	monsters[2].prop=&wq[3];
@@ -1252,16 +1328,15 @@ int main() {
 	scanf("%s", player_name);
 	size_t namelength = strlen(player_name);//判断玩家名字长度
 	strncpy(player[0].name, player_name,namelength+3 );//将玩家输入的名字复制到玩家结构体对应的变量中*/
-	player[1] = player[0];
 
 
-	monster=monsters[1];
+	monster=monsters[2];
 	while(1) {
-		
+
 
 		//conversation(&player[0],&npcs[1]);
 		bag();
-		//attackact(&player[0],monster);
+		//attackact(&players[0],monster);
 	}
 
 	//putheart();
@@ -1436,6 +1511,7 @@ void putheart(void) { //在屏幕上输出一个爱心！
 		if(i>37&&i<41)c=68;
 		COLOR(c);
 		printf("%3d",i);
+		COLOR(0);
 		if(i%7==0)printf("\n");
 	}
 	COLOR(7);
@@ -1467,7 +1543,7 @@ void SlowDisplay(const char *text,int n) {//n=0说明需要缓慢输出并跳过
 			while(text[++i]!=']') {
 				task*=10;
 				task+=text[i]-'0';
-				
+
 			}
 			checktask_result=checktask(&tasks[task]);
 
@@ -1503,55 +1579,52 @@ int random(void) { //以当前时间（秒为单位）为种子生成一个0～9
 	return re;
 }*/
 
-void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第i个元素，i+1是这个角色的备份
-	int n[LEN]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	int ll[LEN]= {0,5,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	int one[LEN]= {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	while(comparr(player[i].exp,player[i+1].lexp)==1) {//判断此时玩家经验是否达到升级条件
-		if(comparr(player[i].lever,ll)==-1) { //50级以下
-			plusarr(n,one);
-			mularr(player[i+1].lexp,1.3);
-			mularr(player[i+1].hp,1.5);
-			mularr(player[i+1].hd,1.5);
-			mularr(player[i+1].attack,1.5);
-			mularr(player[i+1].defence,1.5);
+void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第i个元素
+	int n=0;
+	int ll= 50;
+	int one= 1;
+	while(players[i].exp>=players[i].lexp) {//判断此时玩家经验是否达到升级条件
+		if(players[i].lever>=ll) { //50级以下
+			n+=one;
+			minusarr(players[i].exp,players[i].lexp);//减掉升级所用的经验值
+			mularr(players[i].lexp,1.3);
+			players[i].f_hp*=1.5;
+			players[i].f_hd*=1.5;
+			players[i].n_attack*=1.5;
+			players[i].n_defence*=1.5;
 		} else { //50级以上
-			plusarr(n,one);
-			mularr(player[i+1].lexp,2.0);
-			mularr(player[i+1].hp,1.8);
-			mularr(player[i+1].hd,1.8);
+			n+=one;
+			minusarr(players[i].exp,players[i].lexp);
+			mularr(players[i].lexp,2.0);
+			players[i].f_hp*=1.8;
+			players[i].f_hd*=1.8;
+			players[i].n_attack*=1.8;
+			players[i].n_defence*=1.8;
 		}
 
 	}
-	if(comparr(n,one)==1) {
+	if(n>one) {
 		SlowDisplay("蛙趣，连升",0);
-		putarr(n);
+		printf("%d",n);
 		SlowDisplay("级！\n",0);
-	} else if(comparr(n,one)==0) {
+	} else if(n==one) {
 		SlowDisplay("升级了！",0);
 	}
-	plusarr(player[i+1].lever,n);
-	copyarr(player[i].lever,player[i+1].lever);
-	copyarr(player[i].lexp,player[i+1].lexp);
-	copyarr(player[i].hp,player[i+1].hp);
-	copyarr(player[i].hd,player[i+1].hd);
-	copyarr(player[i].attack,player[i+1].attack);
-	copyarr(player[i].defence,player[i+1].defence);
-	iniarr(player[i].exp);
+	hotel();//升级会清除所有状态
 }
 
 
 
-int attackact(struct Player *player,struct Monster monster) { 
+int attackact(struct Player *player,struct Monster monster) {
 //战斗模块，赢了返回1输了返回0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        妈的，写累死了都没写完。??
 	system("cls");//清除控制台
 	SlowDisplay(monster.name,0);
 	SlowDisplay(monster.v,0);
 	SlowDisplay("！\n",0);
 	int k=1;//有一方血量为零或逃跑成功时k=0
-	int harm[LEN];//攻击产生的伤害
-	int hpplus[LEN];//技能或道具回复的血量
-	copyarr(harm,ablank);
+	long harm;//攻击产生的伤害
+	long hpplus;//技能或道具回复的血量
+	//copyarr(harm,ablank);
 	while(k) { //循环战斗过程
 
 		//下面是玩家的回合
@@ -1560,26 +1633,50 @@ PlayerRand:
 		puts("=============================================================================");
 		puts("1. 攻击   2. 使用物品   3.  查看   4.  逃跑\n\n");
 		switch(fflush(stdin),choosenum=-1,scanf("%d",&choosenum),system("cls"),choosenum) { //读入玩家选择并判断;fflush(stdin)刷新输入缓冲区
-			case 1:
-				puts("要用什么技能？");
-				int s_index=0;
-				for(int i=0; i<spnum; i++) //创建当前技能列表
-					if(skill_list[i].stu)//判断这个技能是否习得
-						sarr[s_index++]=skill_list[i];
-				//s_index=0;
-				puts("=============================================================================");
-				for(int i=0; i<s_index; i++) { //输出当前技能列表
-					if(i%lineL==0)printf("\n");
-					printf("   %d.  %s",i,sarr[i].name);
+			case 1: {
+				int s_index=0,cheat=0;
+				for(int i=0; i<LEN; i++) //创建当前技能列表
+					if(player->sp[i]!=0)//判断这个技能是否习得
+						sarr[s_index++]=skill_list[player->sp[i]];
+				if(random()==1)cheat=1;//小概率事件-作弊
+				s_index+=cheat;
+				choosenum=0;
+				while(1) {
+					system("cls");
+					puts("要用什么技能？用WASD或方向键选择物品,Q退出，回车确定：\n");
+
+					puts("=============================================================================");
+					for(int i=0; i<s_index; i++) { //输出当前技能列表
+						if(i%(lineL-1)==0)printf("\n");
+						if(i==choosenum)COLOR(240);
+						printf("%d.  %s\t\t",i,sarr[i].name);
+						COLOR(7);
+					}
+					if(cheat) {
+						if(choosenum==s_index)
+							COLOR(240);
+						printf("   114514.   什么都不做\n");
+						COLOR(7);
+						printf("\n");
+					}
+
+
+					//现在技能列表按照其在技能数组里的索引值排列了
+					int kg=takechoose(s_index);
+					fflush(stdin);
+
+					if(kg==0) { //按Q
+						system("cls");
+						goto PlayerRand;//攻击-回到玩家回合
+
+					}
+					if(kg==3) { //按回车
+						puts(" ");
+						break;
+					}
+
 				}
-				if(random()==1)
-					printf("   114514.   什么都不做\n");
-				printf("\n");
-				puts("=============================================================================\n\n");
-				//现在技能列表按照其在技能数组里的索引值排列了
-				choosenum=-1;
-				scanf("%d",&choosenum);//读入选择的技能
-				fflush(stdin);
+
 				if(choosenum==114514) {
 					SlowDisplay(player->name,0);
 					SlowDisplay("说：\"我什么都做不到！\"\n\n",0);
@@ -1588,9 +1685,9 @@ PlayerRand:
 					SlowDisplay("某处传来一个声音：“版本之子，启动！”\n",0);
 					player->attp=&wq[3];
 					player->defp=&fj[7];
-					mularr(player->attack,9999);
-					mularr(player->hp,9999);
-					mularr(player->hd,9999);
+					player->attack*=9999;
+					player->hp*=9999;
+					player->hd*=9999;
 					usleep(500*1000);
 					printf("%s得到了加强！\n%s得到了超模神器！\n\n",player->name,player->name);
 					break;
@@ -1601,19 +1698,19 @@ PlayerRand:
 					goto PlayerRand;
 				}
 
-				if(comparr(player->hd,sarr[choosenum].sp)!=1) { //如果蓝不够
+				if(player->hd<=sarr[choosenum].sp) { //如果蓝不够
 					SlowDisplay("你的法力不足！！\n",0);
 					goto PlayerRand;//重新开始这回合
 				}
-				minusarr(player->hd,sarr[choosenum].sp);//减少蓝
+				player->hd-sarr[choosenum].sp;//减少蓝
 
-				copyarr(harm,player->attack);//读取攻击力
+				harm=player->attack;//读取攻击力
 
-				plusarr(harm,player->attp->num);//武器加成
+				harm+=player->attp->num;//武器加成
 
-				mularr(harm,sarr[choosenum].damage);//计算伤害倍率
+				harm*=sarr[choosenum].damage;//计算伤害倍率
 
-				minusarr(harm,monster.defence);//计算最终伤害
+				harm-monster.defence;//计算最终伤害
 
 				SlowDisplay(player->name,0);
 				SlowDisplay("使出了",0);
@@ -1623,56 +1720,99 @@ PlayerRand:
 				SlowDisplay(monster.name,0);
 				SlowDisplay("  受到了  ",0);
 				COLOR(sarr[choosenum].ele);
-				putarr(harm);
+				printf("%ld",harm);
 				COLOR(7);
 				SlowDisplay("  点伤害!\n",0);
-				minusarr(monster.hp,harm);//减少怪物的hp
+				monster.hp-=harm;//减少怪物的hp
 
 				break;//攻击-跳出玩家回合
+			}
 
 
-			case 2:
-				SlowDisplay("要使用什么？",0);
-				puts("\n=============================================================================");
-				int i=0;
-				//struct Prop *head=&sl;
-				SlowDisplay("\n攻击道具：\n",0);
-				for(int gji=0,t=0; gji<50; gji++) {
+
+			case 2: {
+				int i=0,gji,fyi,hfi;
+
+				for(int gji=0; gji<50; gji++) {//这三个for会先把道具列表创建出来
 					if(gj[gji].havenum) {
 						parr[i]=&gj[gji];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=1;
+						i++;
 					}
 				}
-				SlowDisplay("\n防御道具：\n",0);
-				for(int fyi=0,t=0; fyi<50; fyi++) {
+				gji=i;
+
+				for(int fyi=0; fyi<50; fyi++) {
 					if(fy[fyi].havenum) {
 						parr[i]=&fy[fyi];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=1;
+						i++;
 					}
 				}
-				SlowDisplay("\n回复道具：\n",0);
-				for(int hfi=0,t=0; hfi<50; hfi++) {
+				fyi=i;
+
+				for(int hfi=0; hfi<50; hfi++) {
 					if(hf[hfi].havenum) {
 						parr[i]=&hf[hfi];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=1;
+						i++;
 					}
 				}
-				puts("\n=============================================================================");
-				fflush(stdin);
-				choosenum=-1;
-				scanf("%d",&choosenum);
-				if(choosenum<=-1&&choosenum>i) {
-					printf("………………\n");
-					SlowDisplay(waring_content,0);
-					system("cls");//清除控制台
-					goto PlayerRand;
+				hfi=i;
+
+				choosenum=0;
+
+				while(1) {
+					system("cls");
+
+
+					SlowDisplay("要使用什么？",1);
+					puts("\n=============================================================================");
+
+					SlowDisplay("\n攻击道具：\n",1);
+					for(int g=0,t=1; g<gji; g++) {
+						if(g==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",g,parr[g]->name,parr[g]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+					SlowDisplay("\n防御道具：\n",1);
+					for(int g=gji,t=1; g<fyi; g++) {
+						if(g==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",g,parr[g]->name,parr[g]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+
+
+
+					SlowDisplay("\n回复道具：\n",1);
+					for(int g=fyi,t=1; g<hfi; g++) {
+						if(g==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",g,parr[g]->name,parr[g]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+
+
+
+
+
+					puts("\n=============================================================================");
+					int kg=takechoose(i);
+					fflush(stdin);
+
+					if(kg==0) { //按Q
+						system("cls");
+						goto PlayerRand;//使用物品-回到玩家回合
+
+					}
+					if(kg==3) { //按回车
+						puts(" ");
+						break;
+					}
 				}
+
 				puts("\n");
 				SlowDisplay(player->name,0);
 				SlowDisplay(" 使用了 ",0);
@@ -1680,75 +1820,77 @@ PlayerRand:
 				puts("!!\n");
 				switch(parr[choosenum]->type) {
 					case 2://攻击型道具
-						copyarr(harm,parr[choosenum]->num);//读取攻击力
+						harm=parr[choosenum]->num;//读取攻击力
 
-						minusarr(harm,monster.defence);//计算最终伤害
+						harm-=monster.defence;//计算最终伤害
 
 						SlowDisplay(monster.name,0);
 						SlowDisplay("  受到了  ",0);
 						COLOR(parr[choosenum]->ele);
-						putarr(harm);
+						printf("%ld",harm);
 						COLOR(7);
 						SlowDisplay("  点伤害!\n",0);
-						minusarr(monster.hp,harm);//减少怪物的hp
+						monster.hp-=harm;//减少怪物的hp
 						parr[choosenum]->havenum-=1;
 						break;//判断物品类型-跳到使用物品
 
 					case 3://回复型道具
-						copyarr(hpplus,parr[choosenum]->num);
-						plusarr(player->hp,hpplus);
+						hpplus=parr[choosenum]->num;
+						player->hp+=hpplus;
 						SlowDisplay(player->name,0);
 						SlowDisplay(" 回复了 ",0);
-						putarr(hpplus);
+						printf("%ld",hpplus);
 						SlowDisplay("点血！\n",0);
-						if(comparr(player->hp,player[1].hp)==1) {
-							copyarr(player->hp,player[1].hp);
+						if(player->hp>player[1].hp) {
+							player->hp=player[1].hp;
 							SlowDisplay("回满了！\n",0);
 						} else {
 							SlowDisplay("现在有 ",0);
-							putarr(player->hp);
+							printf("%ld",player->hp);
 							SlowDisplay(" 点血量！\n",0);
 						}
 						parr[choosenum]->havenum-=1;
 						break;//判断物品类型-跳到使用物品
 
 				}
+				wait();
 				system("cls");//清除控制台
 				break;//使用物品-跳出玩家回合
+			}
+
 
 
 			case 3:
 				SlowDisplay(player->name,0);
 				SlowDisplay(":\nhp:",0);
-				putarr(player->hp);
+				printf("%ld",player->hp);
 				printf("/");
-				putarr(player[1].hp);
+				printf("%ld",player->f_hp);
 				SlowDisplay("\nhd:",0);
-				putarr(player->hd);
+				printf("%ld",player->hd);
 				printf("/");
-				putarr(player[1].hd);
+				printf("%ld",player->f_hd);
 				SlowDisplay("\n攻击力:",0);
-				putarr(player->attack);
+				printf("%ld",player->attack);
 				SlowDisplay("\n防御力:",0);
-				putarr(player->defence);
+				printf("%ld",player->defence);
 				SlowDisplay("\n:当前武器:",0);
 				printf("%s",player->attp->name);
 				SlowDisplay("\n:当前防具:",0);
 				printf("%s",player->defp->name);
 				SlowDisplay("\n:当前等级:",0);
-				putarr(player->lever);
+				printf("%ld",player->lever);
 
 				printf("\n");
 				SlowDisplay(monster.name,0);
 				SlowDisplay(":\nhp:",0);
-				putarr(monster.hp);
+				printf("%ld",monster.hp);
 
 				SlowDisplay("\n攻击力:",0);
-				putarr(monster.attack);
+				printf("%ld",monster.attack);
 				SlowDisplay("\n防御力:",0);
-				putarr(monster.defence);
-				SlowDisplay("\n\n\n按任意键继续。。",0);
-				getchar();
+				printf("%ld",monster.defence);
+				wait();
 				system("cls");//清除控制台
 				goto PlayerRand;//查看-重新开始玩家回合
 			case 4:
@@ -1767,7 +1909,7 @@ PlayerRand:
 				SlowDisplay(waring_content,0);
 				goto PlayerRand;
 		}
-		if(comparr(monster.hp,ablank)!=1) { //如果怪物被击败
+		if(monster.hp<=0) { //如果怪物被击败
 			SlowDisplay(monster.name,0);
 			SlowDisplay(" 被击败了！！\n",0);
 			if(random()<addpro) { //判断是否掉落物品
@@ -1778,7 +1920,7 @@ PlayerRand:
 				//printf("%d",monster.prop->havenum);
 			}
 			plusarr(player->exp,monster.exp);
-			leverUP(0);
+			//leverUP(0);
 			k=0;
 			break;//结束战斗
 		}
@@ -1793,7 +1935,7 @@ PlayerRand:
 				monster.exp[0]=1;//如果逃跑则没有经验
 				break;
 			}
-			copyarr(harm,monster.attack);
+			harm=monster.attack;
 
 			//putarr(harm);printf("攻击力\n");
 			//putarr(player->hp);printf("初始血量\n");
@@ -1801,21 +1943,20 @@ PlayerRand:
 			if(random()<=monster.pro) {
 				struct Skill* msnum=monster.snum[0];
 
-				mularr(harm,msnum->damage);
+				harm*=msnum->damage;
 
 				//minusarr(harm,player->defence);//计算伤害
 
 				//putarr(harm);printf("伤害\n");
 				//printf("com%d\n",comparr(harm,ablank));
-				int fdef[LEN];
-				copyarr(fdef,player->defence);
-				plusarr(fdef,player->defp->num);//防具加成
-				if(comparr(harm,fdef)!=1) { //如果防御太高则伤害为1
-					iniarr(harm);
-					harm[0]=1;
-					
+				long fdef;
+				fdef=player->defence;
+				fdef+=player->defp->num;//防具加成
+				if(harm<=fdef) { //如果防御太高则伤害为1
+					harm=1;
+
 				} else {
-					minusarr(harm,fdef);//计算伤害
+					harm-=fdef;//计算伤害
 				}
 
 				SlowDisplay(monster.name,0);
@@ -1824,19 +1965,18 @@ PlayerRand:
 				SlowDisplay("!!\n\n",0);
 				SlowDisplay(player->name,0);
 				SlowDisplay("受到了 ",0);
-				putarr(harm);
+				printf("%ld",harm);
 				SlowDisplay(" 点伤害！\n\n",0);
-				minusarr(player->hp,harm);
+				player->hp-=harm;
 				//putarr(player->hp);printf("血量\n");
 			} else {
 				SlowDisplay(monster.name,0);
 				SlowDisplay("走神了！什么都没做！",0);
 			}
-			if(comparr(player->hp,ablank)!=1) { //玩家被击败
+			if(player->hp<=0) { //玩家被击败
 				SlowDisplay(player->name,0);
 				SlowDisplay("被击败了！！\n",0);
-				iniarr(player->hp);
-				player->hp[0]=1;
+				player->hp=1;
 				return 0;//结束战斗
 			}
 		}
@@ -1845,6 +1985,11 @@ PlayerRand:
 	}
 
 	//ENDATTACK:
+	for(int i=0; i<4; i++) { //清除战斗中的buff
+		players[i].attack=players[i].n_attack;
+		players[i].defence=players[i].n_defence;
+		players[i].miss=players[i].n_miss;
+	}
 	SlowDisplay("战斗结束！\n\n",0);
 	SlowDisplay("\n\n按任意键继续。。",0);
 	getchar();
@@ -1853,12 +1998,17 @@ PlayerRand:
 }
 
 void hotel(void) { //回满状态的函数，在旅馆等地点调用
-	player[0]=player[1];
+	for(int i=0; i<4; i++) {
+		players[i].hd=players[i].f_hd;
+		players[i].hp=players[i].f_hp;
+		players[i].attack=players[i].n_attack;
+		players[i].defence=players[i].n_defence;
+	}
 
 }
 
 void bag(void) { //察看背包及其它操作函数
-	int hpplus[LEN];//技能或道具回复的血量
+	long hpplus=0;//技能或道具回复的血量
 	int k=1;
 
 	while(k) {
@@ -1877,141 +2027,288 @@ void bag(void) { //察看背包及其它操作函数
 				printf("………………\n");
 				SlowDisplay(waring_content,0);
 				break;
-			case 1:
+			case 1: {
 				system("cls");//清除控制台
-				SlowDisplay("\n防具：\n",0);
-				for(int fji=0,t=0; fji<50; fji++) {
+				SlowDisplay("要更换谁的防具？\n\n",0);
+				for(int i=0; i<4; i++) {
+					printf("%d:%s\t",i,players[i].name);
+				}
+				puts("\n=============================================================================");
+				choosenum=-1;
+				fflush(stdin);
+				scanf("%d",&choosenum);
+				fflush(stdin);
+				struct Player *player=&players[choosenum];
+
+
+				for(int fji=0; fji<50; fji++) {
 					if(fj[fji].havenum) {
 						parr[i]=&fj[fji];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=0;
+						i++;
 					}
 				}
 				int fjnum=i;
 				printf("\n");
 				fflush(stdin);
-				choosenum=-1;
-				scanf("%d",&choosenum);
-				fflush(stdin);
-				if(choosenum==-1||choosenum>fjnum) {
+				choosenum=0;
+				while(1) {
+					system("cls");
+					puts("要用什么防具？用WASD或方向键选择物品,Q退出，回车确定：\n");
+					SlowDisplay("\n防具：\n",1);
+					for(int i=0,t=1; i<fjnum; i++) {
+						if(i==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+					puts("\n=============================================================================");
+					printf("防御力：%ld",parr[choosenum]->num);
+					int kg=takechoose(fjnum);
+					fflush(stdin);
+
+					if(kg==0) { //按Q
+						system("cls");
+						choosenum=-1;
+						break;
+					}
+					if(kg==3) { //按回车
+						puts(" ");
+						break;
+					}
+				}
+
+				if(choosenum==-1) {
+					break;
+				}
+
+				if(choosenum>fjnum) {//虽然不可能出现这种情况，但还是以防万一吧。。。
 					printf("………………\n");
 					SlowDisplay(waring_content,0);
 					break;
 				}
-				SlowDisplay(player[0].name,0);
+				SlowDisplay(player->name,0);
 				SlowDisplay("将",0);
-				SlowDisplay(player[0].defp->name,0);
+				SlowDisplay(player->defp->name,0);
 				SlowDisplay("换成了",0);
 				SlowDisplay(parr[choosenum]->name,0);
 				printf("!\n");
-				player[0].defp=parr[choosenum];
-				player[1]=player[0];
-
+				player->defp->havenum+=1;
+				player->defp=parr[choosenum];
+				parr[choosenum]->havenum-=1;
+				wait();
 				break;
-			case 2:
+			}
+
+			case 2: {
 				system("cls");//清除控制台
-				SlowDisplay("\n武器：\n",0);
-				for(int wqi=0,t=0; wqi<50; wqi++) {
+				SlowDisplay("要更换谁的武器？\n",0);
+				for(int i=0; i<4; i++) {
+					printf("%d:%s\t",i,players[i].name);
+				}
+				puts("\n=============================================================================");
+				choosenum=-1;
+				fflush(stdin);
+				scanf("%d",&choosenum);
+				fflush(stdin);
+				struct Player *player=&players[choosenum];
+
+
+				for(int wqi=0; wqi<50; wqi++) {
 					if(wq[wqi].havenum) {
 						parr[i]=&wq[wqi];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=0;
+						i++;
 					}
 				}
 				int wqnum=i;
 				printf("\n");
 				fflush(stdin);
-				choosenum=-1;
-				scanf("%d",&choosenum);
-				fflush(stdin);
-				if(choosenum==-1||choosenum>wqnum) {
+				choosenum=0;
+				while(1) {
+					system("cls");
+					puts("要用什么武器？用WASD或方向键选择物品,Q退出，回车确定：\n");
+					SlowDisplay("\n武器：\n",1);
+					for(int i=0,t=1; i<wqnum; i++) {
+						if(i==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+					puts("\n=============================================================================");
+					printf("攻击力：%ld",parr[choosenum]->num);
+					int kg=takechoose(wqnum);
+					fflush(stdin);
+
+					if(kg==0) { //按Q
+						system("cls");
+						choosenum=-1;
+						break;
+					}
+					if(kg==3) { //按回车
+						puts(" ");
+						break;
+					}
+				}
+
+				if(choosenum==-1) {
+					break;
+				}
+
+				if(choosenum>wqnum) {//虽然不可能出现这种情况，但还是以防万一吧。。。
 					printf("………………\n");
 					SlowDisplay(waring_content,0);
 					break;
 				}
-				SlowDisplay(player[0].name,0);
+				SlowDisplay(player->name,0);
 				SlowDisplay("将",0);
-				SlowDisplay(player[0].attp->name,0);
+				SlowDisplay(player->attp->name,0);
 				SlowDisplay("换成了",0);
 				SlowDisplay(parr[choosenum]->name,0);
 				printf("!\n");
-				player[0].attp=parr[choosenum];
-				player[1]=player[0];
+				player->attp->havenum+=1;
+				player->attp=parr[choosenum];
+				parr[choosenum]->havenum-=1;
+				wait();
 				break;
-			case 3:
-				system("cls");//清除控制台
-				SlowDisplay("\n攻击道具：\n",0);
-				for(int gji=0,t=0; gji<50; gji++) {
+			}
+			case 3: {
+				int i=0,gji,fyi,hfi;
+
+				for(int gji=0; gji<50; gji++) {//这三个for会先把道具列表创建出来
 					if(gj[gji].havenum) {
 						parr[i]=&gj[gji];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=0;
+						i++;
 					}
 				}
-				int gjnum=i-1;
-				SlowDisplay("\n防御道具：\n",0);
-				for(int fyi=0,t=0; fyi<50; fyi++) {
+				gji=i;
+
+				for(int fyi=0; fyi<50; fyi++) {
 					if(fy[fyi].havenum) {
 						parr[i]=&fy[fyi];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==5)printf("\n\n"),t=0;
+						i++;
 					}
 				}
-				int fynum=i;
-				SlowDisplay("\n回复道具：\n",0);
-				for(int hfi=0,t=0; hfi<50; hfi++) {
+				fyi=i;
+
+				for(int hfi=0; hfi<50; hfi++) {
 					if(hf[hfi].havenum) {
 						parr[i]=&hf[hfi];
-						printf("%d . %s:%d个\t",i,parr[i]->name,parr[i]->havenum);
-						i++,t++;
-						if(t==lineL)printf("\n\n"),t=0;
+						i++;
 					}
 				}
-				int hfnum=i;
-				SlowDisplay("\n您想使用啥？先说好非战斗状态不能使用攻击和防御道具哦！\n",0);
-				printf("\n");
+				hfi=i;
 
-				fflush(stdin);
-				choosenum=-1;
-				scanf("%d",&choosenum);
-				fflush(stdin);
-				if(choosenum<=-1||choosenum>hfnum) {
+				choosenum=0;
+
+				while(1) {
+					system("cls");
+					SlowDisplay("\n您想使用啥？先说好非战斗状态不能使用攻击和防御道具哦！\n",1);
+					printf("\n");
+
+					SlowDisplay("要使用什么？",1);
+					puts("\n=============================================================================");
+
+					SlowDisplay("\n攻击道具：\n",1);
+					for(int g=0,t=1; g<gji; g++) {
+						if(g==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",g,parr[g]->name,parr[g]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+					SlowDisplay("\n防御道具：\n",1);
+					for(int g=gji,t=1; g<fyi; g++) {
+						if(g==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",g,parr[g]->name,parr[g]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+
+
+
+					SlowDisplay("\n回复道具：\n",1);
+					for(int g=fyi,t=1; g<hfi; g++) {
+						if(g==choosenum)COLOR(240);
+						printf("%d . %s:%d个\t",g,parr[g]->name,parr[g]->havenum);
+						COLOR(7);
+						t++;
+						if(t==lineL)printf("\n\n"),t=1;
+					}
+
+
+
+
+
+					puts("\n=============================================================================");
+					printf("数值：%ld",parr[choosenum]->num);
+					int kg=takechoose(i);
+					fflush(stdin);
+
+					if(kg==0) { //按Q
+						system("cls");
+						choosenum=-1;
+						break;
+
+					}
+					if(kg==3) { //按回车
+						puts(" ");
+						break;
+					}
+				}
+
+
+				if(choosenum==-1) {
+					break;
+				}
+
+				if(choosenum>hfi) {
 					printf("………………\n");
 					SlowDisplay(waring_content,0);
 					usleep(1500*1000);
 					break;
 				}
-				if(choosenum>=0&&choosenum<=gjnum) {
+				if(choosenum>=0&&choosenum<=gji) {
 					SlowDisplay("哈？你是不是没看见我说的啥？指望攻击道具虚空索敌？\n",0);
 					usleep(1500*1000);
-				} else if(choosenum<fynum) {
+				} else if(choosenum<fyi) {
 					SlowDisplay("…………芳斯塔夫说过：叠甲死路一条。\n",0);
 					usleep(1500*1000);
 
-				} else if(choosenum<hfnum) {
-					copyarr(hpplus,parr[choosenum]->num);
-					plusarr(player[0].hp,hpplus);
+				} else if(choosenum<hfi) {
+					int choose=-1;
+					SlowDisplay("给谁用？\n",0);
+					for(int i=0; i<4; i++) {
+						printf("%d:%s\t",i,players[i].name);
+					}
+					puts("\n=============================================================================");
+					fflush(stdin);
+					scanf("%d",&choose);
+					fflush(stdin);
+					struct Player *player=&players[choose];
+
+					hpplus+=parr[choosenum]->num;
+					player->hp+=hpplus;
 					parr[choosenum]->havenum-=1;
-					SlowDisplay(player[0].name,0);
+					SlowDisplay(player->name,0);
 					SlowDisplay("使用了",0);
 					SlowDisplay(parr[choosenum]->name,0);
 					SlowDisplay(" ,回复了 ",0);
-					putarr(hpplus);
+					printf("%ld",hpplus);
+					hpplus=0;
 					SlowDisplay("点血！\n",0);
-					if(comparr(player[0].hp,player[1].hp)==1) {
-						copyarr(player[0].hp,player[1].hp);
+					if(player->hp>=player->f_hp) {
+						player->hp=player->f_hp;
 						SlowDisplay("回满了！\n",0);
 					}
 					SlowDisplay("现在有 ",0);
-					putarr(player[0].hp);
+					printf("%ld",player[0].hp);
 					SlowDisplay(" 点血量！\n",0);
+					wait();
 				}
-
 				break;
+			}
 			case 4: {
 				system("cls");//清除控制台
 				SlowDisplay("用WASD或方向键选择物品,Q退出：\n",0);
@@ -2170,14 +2467,14 @@ LOOP:
 			goto LOOP;
 		}
 	}
-	if(con->fight){
+	if(con->fight) {
 		int kg=attackact(&player[0],monsters[con->fight]);
-		if(con->fight_continue||kg==1){	
-			if(con->next[0]){
+		if(con->fight_continue||kg==1) {
+			if(con->next[0]) {
 				con=&conversations[con->next[0]];
 				goto LOOP;
 			}
-			
+
 		}
 	}
 
@@ -2447,6 +2744,7 @@ int checktask(struct Task *task) {
 //检查任务函数，检查任务是否满足开始条件(返回1/0)、
 //					任务是否开启(返回2)、
 //					任务是否完成(返回3)
+//					任务是否结束(返回4)
 //优先级从前往后升高
 
 	int result=1;
@@ -2455,7 +2753,7 @@ int checktask(struct Task *task) {
 		goto FINISH;
 	}
 	if(task->finish) {
-		result=3;
+		result=4;
 		goto END;
 	}
 
@@ -2566,20 +2864,20 @@ struct Prop *index2prop(int n) {
 	return reprop;
 }
 
-void check_npc_task(struct NPC *npc){
+void check_npc_task(struct NPC *npc) {
 	//检查该npc所有相关任务是否完成，并对该npc的对话起点做出相应修改。
 	int tnum=npc->task[0];//读取这个NPC有几个任务
-	for(int i=1;i<=tnum;i++){
+	for(int i=1; i<=tnum; i++) {
 		int num=npc->task[i];//记录每个任务的编号
-		int kg=checktask(&tasks[num]);//检查这些任务完成情况 
-		if(kg==1){
+		int kg=checktask(&tasks[num]);//检查这些任务完成情况
+		if(kg==1) { //该任务可被开启
 			npcs[tasks[num].npc_s].con=&conversations[tasks[num].con_s];//更改对话起点
 		}
-		if(kg==2||kg==3){
-				npcs[tasks[num].npc_f].con=&conversations[tasks[num].con_f];//更改对话起点
+		if(kg==2||kg==3) {
+			npcs[tasks[num].npc_f].con=&conversations[tasks[num].con_f];//更改对话起点
 		}
-		
-		
+
+
 	}
 }
 
