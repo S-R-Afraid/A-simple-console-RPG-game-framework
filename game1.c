@@ -69,7 +69,7 @@ struct Attribute {//附加属性结构体
 struct Relics {//圣遗物结构体
 	int n;//类别，比如头部、腹部什么的
 	struct Attribute attribute;//属性
-	
+
 };
 
 
@@ -83,7 +83,7 @@ struct Player { //玩家结构体
 	long n_attack;//平时攻击力;用于消除战斗中使用的道具对攻击力的影响
 	long defence;//当前防御力
 	long n_defence;
-	int miss;//敏捷，即闪避概率.最高不超过%20
+	float miss;//敏捷，即闪避概率.最高不超过%20
 	int n_miss;
 	int sp[LEN];//技能列表
 	long lever;//等级
@@ -93,6 +93,13 @@ struct Player { //玩家结构体
 	struct Prop *attp;//武器
 	int team;//当前是否在队伍里
 	int relics[5];//圣遗物
+	float hparr[2];
+	float hdarr[2];
+	float defarr[2];
+	float attarr[2];//这四个是数值变化的斜率与截距
+	float crit_rate;//暴击率
+	float crit_damage;//暴击伤害倍率
+	float cure;//治疗加成
 };
 
 struct Monster { //怪物结构体
@@ -804,9 +811,10 @@ struct Souvenir souvenir[50]= {
 	},
 };
 
-struct Relics relics[5][200]={
-	
-	{//头部
+struct Relics relics[5][200]= {
+
+	{
+		//头部
 		{
 			.n=0,
 			.attribute={
@@ -822,10 +830,11 @@ struct Relics relics[5][200]={
 				.cure=0.2,
 			},
 		},
-		
+
 	},
-	
-	{//胸部
+
+	{
+		//胸部
 		{
 			.n=1,
 			.attribute={
@@ -841,10 +850,11 @@ struct Relics relics[5][200]={
 				.cure=0.2,
 			},
 		},
-		
+
 	},
-	
-	{//腿部
+
+	{
+		//腿部
 		{
 			.n=2,
 			.attribute={
@@ -860,10 +870,11 @@ struct Relics relics[5][200]={
 				.cure=0.2,
 			},
 		},
-		
+
 	},
-	
-	{//足部
+
+	{
+		//足部
 		{
 			.n=3,
 			.attribute={
@@ -879,10 +890,11 @@ struct Relics relics[5][200]={
 				.cure=0.2,
 			},
 		},
-		
+
 	},
-	
-	{//手部
+
+	{
+		//手部
 		{
 			.n=4,
 			.attribute={
@@ -898,7 +910,7 @@ struct Relics relics[5][200]={
 				.cure=0.2,
 			},
 		},
-		
+
 	},
 };
 
@@ -927,6 +939,10 @@ struct Player players[4]= {
 		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
 		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
 		.team=1,
+		.hparr={84.6122,84.6122},
+		.hdarr={19.0714,111.9286},
+		.defarr={47,13},
+		.attarr={348.6327,-268.6327},
 	},
 	{
 		.name="小睿孩\0",
@@ -946,6 +962,10 @@ struct Player players[4]= {
 		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
 		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
 		.team=1,
+		.hparr={84.6122,84.6122},
+		.hdarr={19.0714,111.9286},
+		.defarr={47,13},
+		.attarr={348.6327,-268.6327},
 	},
 	{
 		.name="小苏苏\0",
@@ -965,6 +985,10 @@ struct Player players[4]= {
 		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
 		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
 		.team=1,
+		.hparr={84.6122,84.6122},
+		.hdarr={19.0714,111.9286},
+		.defarr={47,13},
+		.attarr={348.6327,-268.6327},
 	},
 	{
 		.name="花落叶相随\0",
@@ -984,6 +1008,10 @@ struct Player players[4]= {
 		.lexp={0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
 		//因为在主函数外初始化防具和武器会报错，我们在main函数里面初始化
 		.team=1,
+		.hparr={84.6122,84.6122},
+		.hdarr={19.0714,111.9286},
+		.defarr={47,13},
+		.attarr={348.6327,-268.6327},
 	},
 
 
@@ -1142,7 +1170,7 @@ struct ConNode conversations[500]= {
 	{
 		//0
 		.fight=0,
-		.content="这是一个测试文本。没有选择。不会开启任务",
+		.content="这是一个测试文本0。没有选择。不会开启任务",
 		.ifchoose=0,
 		.start_task=0,
 		.check_task=0,
@@ -1151,7 +1179,7 @@ struct ConNode conversations[500]= {
 	{
 		//1
 		.fight=0,
-		.content="这是一个测试文本。没有选择。不会开启任务",
+		.content="这是一个测试文本1。没有选择。不会开启任务",
 		.ifchoose=0,
 		.start_task=0,
 		.check_task=0,
@@ -1159,7 +1187,7 @@ struct ConNode conversations[500]= {
 	{
 		//2
 		.fight=0,
-		.content="这是一个测试文本。有选择。不会开启任务",
+		.content="这是一个测试文本2。有选择。不会开启任务",
 		.ifchoose=5,
 		.chooselist={"C1","C2","C3","C0","C5"},
 		.next={1,2,3,0,0},
@@ -1169,7 +1197,7 @@ struct ConNode conversations[500]= {
 	{
 		//3
 		.fight=0,
-		.content="这是一个测试文本。无选择。会开启任务",
+		.content="这是一个测试文本3。无选择。会开启任务",
 		.ifchoose=0,
 		.start_task=1,
 		.check_task=0,
@@ -1189,15 +1217,13 @@ struct ConNode conversations[500]= {
 		.fight=0,
 		.content="“非常抱歉，女士。”  你很遗憾地告诉她你家里煤气忘记关了，没时间管什么居民委托，“我不得不尽快回去。”\\W女人张了张嘴，最后失望的独自离去了。",
 		.ifchoose=0,
-		.chooselist={"0","0","C3","C0","C5"},
-		.next={0,0,0,0,0},
 		.start_task=0,
 		.check_task=0,
 	},
 	{
 		//6
 		.fight=0,
-		.content="\n“没问题，小姐。你可以向我详细说说是什么情况吗？”助人为乐一直是你的美德————在大部分情况下如此————因此你好不犹豫的同意了她的请求。反正你自认为自己的战斗力睥睨全球，不怕有什么阴招。“哦，哦。好的，我们边走边说吧”女人没想到你答应的这么干脆，顿时喜出望外。",
+		.content="\n“没问题，小姐。你可以向我详细说说是什么情况吗？”助人为乐一直是你的美德————在大部分情况下如此————因此你毫不犹豫的同意了她的请求。反正你自认为自己的战斗力睥睨全球，不怕有什么阴招。“哦，哦。好的，我们边走边说吧”女人没想到你答应的这么干脆，顿时喜出望外。",
 		.ifchoose=1,
 		.chooselist={"没问题","C2","C3","C0","C5"},
 		.next={7,0,0,0,0},
@@ -1356,8 +1382,8 @@ void putarr(int a[]);
 void leverUP(int i);
 //判断是否升级并执行
 
-int attackact(struct Player *player,struct Monster monster);
-//攻击行为函数。运行此函数将进入战斗直到一方倒下或逃跑。胜利返回1，失败返回0
+int attackact(struct Player *player,struct Monster monster,int e);
+//攻击行为函数。运行此函数将进入战斗直到一方倒下或逃跑。胜利返回1，失败返回0;e表示是否可以逃跑
 
 int random(void);
 //以当前时间（秒为单位）为种子生成一个0～99的随机数
@@ -1390,10 +1416,14 @@ struct Prop *index2prop(int n);
 void check_npc_task(struct NPC *npc);
 //检查该npc所有相关任务是否完成，并对该npc的对话起点做出相应修改。
 
-void creat_relics(void);//圣遗物制造机
+void creat_relics(void);
+//圣遗物制造机
 
-int srandom(int n);//以当前时间（秒为单位）和指定数值为种子生成一个0～99的随机数
+int srandom(int n);
+//以当前时间（秒为单位）加上指定数值为种子生成一个0～99的随机数
 
+void count(void);
+//计算攻击力等等数值，用于更换圣遗物后
 
 /*---------定义变量，因为函数也要用到这些变量，所以定义到main外面--------*/
 
@@ -1419,7 +1449,7 @@ char *waring_content="你瞎输牛魔呢？滚啊！！！";
 
 int checktask_result=0;//记录在SlowDisplay中\\T检查的结果
 
-int relics_num[5]={0,0,0,0,0};//记录各个部位圣遗物的数量
+int relics_num[5]= {0,0,0,0,0}; //记录各个部位圣遗物的数量
 /*---------main函数-----------*/
 int main() {
 	/*初始化各种数组*/
@@ -1448,10 +1478,10 @@ int main() {
 
 	monster=monsters[2];
 	while(1) {
+		system("cls");
 
-
-		//conversation(&player[0],&npcs[1]);
-		bag();
+		conversation(&players[0],&npcs[1]);
+		//bag();
 		//attackact(&players[0],monster);
 	}
 
@@ -1697,27 +1727,12 @@ int random(void) { //以当前时间（秒为单位）为种子生成一个0～9
 
 void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第i个元素
 	int n=0;
-	int ll= 50;
 	int one= 1;
-	while(players[i].exp>=players[i].lexp) {//判断此时玩家经验是否达到升级条件
-		if(players[i].lever>=ll) { //50级以下
-			n+=one;
-			minusarr(players[i].exp,players[i].lexp);//减掉升级所用的经验值
-			mularr(players[i].lexp,1.3);
-			players[i].f_hp*=1.5;
-			players[i].f_hd*=1.5;
-			players[i].n_attack*=1.5;
-			players[i].n_defence*=1.5;
-		} else { //50级以上
-			n+=one;
-			minusarr(players[i].exp,players[i].lexp);
-			mularr(players[i].lexp,2.0);
-			players[i].f_hp*=1.8;
-			players[i].f_hd*=1.8;
-			players[i].n_attack*=1.8;
-			players[i].n_defence*=1.8;
-		}
+	while(comparr(players[i].exp,players[i].lexp)!=-1) {//判断此时玩家经验是否达到升级条件
 
+		n+=one;
+		minusarr(players[i].exp,players[i].lexp);//减掉升级所用的经验值
+		mularr(players[i].lexp,1.3);
 	}
 	if(n>one) {
 		SlowDisplay("蛙趣，连升",0);
@@ -1726,12 +1741,14 @@ void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第
 	} else if(n==one) {
 		SlowDisplay("升级了！",0);
 	}
+	players[i].lever+=n;
+	count();//重新计算各项数值
 	hotel();//升级会清除所有状态
 }
 
 
 
-int attackact(struct Player *player,struct Monster monster) {
+int attackact(struct Player *player,struct Monster monster,int e) {
 //战斗模块，赢了返回1输了返回0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        妈的，写累死了都没写完。??
 	system("cls");//清除控制台
 	SlowDisplay(monster.name,0);
@@ -1747,7 +1764,8 @@ int attackact(struct Player *player,struct Monster monster) {
 PlayerRand:
 		puts("\n现在要怎么办？");
 		puts("=============================================================================");
-		puts("1. 攻击   2. 使用物品   3.  查看   4.  逃跑\n\n");
+		if(e) puts("1. 攻击   2. 使用物品   3.  查看   4.  逃跑\n\n");
+		else puts("1. 攻击   2. 使用物品   3.  查看\n\n");
 		switch(fflush(stdin),choosenum=-1,scanf("%d",&choosenum),system("cls"),choosenum) { //读入玩家选择并判断;fflush(stdin)刷新输入缓冲区
 			case 1: {
 				int s_index=0,cheat=0;
@@ -1976,7 +1994,7 @@ PlayerRand:
 
 
 
-			case 3:
+			case 3: {
 				SlowDisplay(player->name,0);
 				SlowDisplay(":\nhp:",0);
 				printf("%ld",player->hp);
@@ -2009,17 +2027,25 @@ PlayerRand:
 				wait();
 				system("cls");//清除控制台
 				goto PlayerRand;//查看-重新开始玩家回合
-			case 4:
-				if(random()<50) {
-					SlowDisplay("逃跑成功！耶！",0);
-					iniarr(monster.exp);
-					monster.exp[0]=1;//如果逃跑则没有经验
-					k=0;
-					//goto ENDATTACK;
-				} else {
-					SlowDisplay("逃跑失败！这下该怎么办啊啊啊啊啊！！\n",0);
+
+			}
+
+			case 4: {
+				if(e) {
+					if(random()<50) {
+						SlowDisplay("逃跑成功！耶！",0);
+						iniarr(monster.exp);
+						monster.exp[0]=1;//如果逃跑则没有经验
+						k=0;
+						//goto ENDATTACK;
+					} else {
+						SlowDisplay("逃跑失败！这下该怎么办啊啊啊啊啊！！\n",0);
+
+					}
 					break;//逃跑-跳出玩家回合
 				}
+			}
+
 			default:
 				printf("………………\n");
 				SlowDisplay(waring_content,0);
@@ -2528,7 +2554,17 @@ LOOP:
 		}
 
 	} else {
-		if(!con->next[0]) {
+		if(con->fight) {
+			int kg=attackact(&player[0],monsters[con->fight],0);
+			if(con->fight_continue||kg==1) {
+				if(con->next[0]) {
+					con=&conversations[con->next[0]];
+					goto LOOP;
+				}
+
+			}
+		}
+		if(con->next[0]) {
 			con=&conversations[con->next[0]];
 			goto LOOP;
 
@@ -2583,16 +2619,7 @@ LOOP:
 			goto LOOP;
 		}
 	}
-	if(con->fight) {
-		int kg=attackact(&player[0],monsters[con->fight]);
-		if(con->fight_continue||kg==1) {
-			if(con->next[0]) {
-				con=&conversations[con->next[0]];
-				goto LOOP;
-			}
 
-		}
-	}
 
 
 }
@@ -2997,9 +3024,9 @@ void check_npc_task(struct NPC *npc) {
 	}
 }
 
-void creat_relics(void){//圣遗物制造机
+void creat_relics(void) { //圣遗物制造机
 	int n=random()%5;
-	struct Attribute arrtibute={
+	struct Attribute arrtibute= {
 		.crit_rate=srandom(1)%29/100,
 		.crit_damage=srandom(2)%57/100,
 		.damage=srandom(3)%400,
@@ -3021,6 +3048,50 @@ int srandom(int n) { //以当前时间（秒为单位）和指定数值为种子
 	return rand() % 100;
 }
 
+void count(void) { //计算攻击力等等数值，用于更换圣遗物、升级后
+	for(int i=0; i<4; i++) {
+		int hp=players[i].lever*players[i].hparr[1]+players[i].hparr[2];
+		int hd=players[i].lever*players[i].hdarr[1]+players[i].hdarr[2];
+		int def=players[i].lever*players[i].defarr[1]+players[i].defarr[2];
+		int att=players[i].lever*players[i].attarr[1]+players[i].attarr[2];
+		//计算基础值
+		float crit_rate;//暴击率
+		float crit_damage;//暴击伤害倍率
+		float damage_rate;//攻击力提高率
+		float hp_rate;
+		float def_rate;
+		float miss;//闪避
+		float cure;//治疗加成
+		for(int j=0; j<5; j++) { //遍历圣遗物并统计加成
+			struct Attribute arrtibute;
+			arrtibute = relics[players[i].relics[j]]->attribute;
+			crit_rate+=arrtibute.crit_rate;
+			crit_damage+=arrtibute.crit_damage;
+			damage_rate+=arrtibute.damage_rate;
+			hp_rate+=arrtibute.hp_rate;
+			miss+=arrtibute.miss;
+			cure+=arrtibute.cure;
+			hp+=arrtibute.hp;
+			def+=arrtibute.def;
+			att+=arrtibute.damage;
+		}
+		hp*=hp_rate;
+		def*=def_rate;
+		att*+damage_rate;
+		crit_rate+=0.05;//每个角色初始%5暴击率
+		if(miss>0.2)miss=0.2;
+		//修改玩家数据
+		players[i].f_hp=hp;
+		players[i].f_hd=hd;
+		players[i].n_attack=att;
+		players[i].n_defence=def;
+		players[i].cure=cure;
+		players[i].n_miss=miss;
+		players[i].crit_rate=crit_rate;
+		players[i].crit_damage=crit_damage;
+	}
+
+}
 
 
 
