@@ -53,13 +53,25 @@ struct Souvenir { //纪念品结构体
 	int ms;//输出内容时间隔，不指明时和DEFAULT_MS一样。
 };
 
-struct attribute {//附加属性结构体
+struct Attribute {//附加属性结构体
 	float crit_rate;//暴击率
 	float crit_damage;//暴击伤害倍率
-	long damage;//伤害值
-	float damage_rate;//伤害提高率
-
+	long damage;//攻击力
+	float damage_rate;//攻击力提高率
+	long hp;//血量提高
+	float hp_rate;
+	long def;//防御
+	float def_rate;
+	float miss;//闪避
+	float cure;//治疗加成
 };
+
+struct Relics {//圣遗物结构体
+	int n;//类别，比如头部、腹部什么的
+	struct Attribute attribute;//属性
+	
+};
+
 
 struct Player { //玩家结构体
 	char name[200];//结构体定义的时候不能被初始化
@@ -71,7 +83,7 @@ struct Player { //玩家结构体
 	long n_attack;//平时攻击力;用于消除战斗中使用的道具对攻击力的影响
 	long defence;//当前防御力
 	long n_defence;
-	int miss;//敏捷，即闪避概率
+	int miss;//敏捷，即闪避概率.最高不超过%20
 	int n_miss;
 	int sp[LEN];//技能列表
 	long lever;//等级
@@ -80,6 +92,7 @@ struct Player { //玩家结构体
 	struct Prop *defp;//防御道具结构体
 	struct Prop *attp;//武器
 	int team;//当前是否在队伍里
+	int relics[5];//圣遗物
 };
 
 struct Monster { //怪物结构体
@@ -791,7 +804,103 @@ struct Souvenir souvenir[50]= {
 	},
 };
 
-
+struct Relics relics[5][200]={
+	
+	{//头部
+		{
+			.n=0,
+			.attribute={
+				.crit_rate=0.2,
+				.crit_damage=0.13,
+				.damage=230,
+				.damage_rate=0.43,
+				.hp=125,
+				.hp_rate=0.17,
+				.def=0,
+				.def_rate=0.13,
+				.miss=0.05,
+				.cure=0.2,
+			},
+		},
+		
+	},
+	
+	{//胸部
+		{
+			.n=1,
+			.attribute={
+				.crit_rate=0.13,
+				.crit_damage=0.54,
+				.damage=230,
+				.damage_rate=0.03,
+				.hp=125,
+				.hp_rate=0.17,
+				.def=0,
+				.def_rate=0.13,
+				.miss=0.05,
+				.cure=0.2,
+			},
+		},
+		
+	},
+	
+	{//腿部
+		{
+			.n=2,
+			.attribute={
+				.crit_rate=0.2,
+				.crit_damage=0.13,
+				.damage=230,
+				.damage_rate=0.43,
+				.hp=125,
+				.hp_rate=0.17,
+				.def=0,
+				.def_rate=0.13,
+				.miss=0.05,
+				.cure=0.2,
+			},
+		},
+		
+	},
+	
+	{//足部
+		{
+			.n=3,
+			.attribute={
+				.crit_rate=0.2,
+				.crit_damage=0.23,
+				.damage=230,
+				.damage_rate=0.43,
+				.hp=125,
+				.hp_rate=0.17,
+				.def=264,
+				.def_rate=0.13,
+				.miss=0.05,
+				.cure=0.2,
+			},
+		},
+		
+	},
+	
+	{//手部
+		{
+			.n=4,
+			.attribute={
+				.crit_rate=0.2,
+				.crit_damage=0.13,
+				.damage=230,
+				.damage_rate=0.43,
+				.hp=125,
+				.hp_rate=0.17,
+				.def=0,
+				.def_rate=0.13,
+				.miss=0.05,
+				.cure=0.2,
+			},
+		},
+		
+	},
+};
 
 
 
@@ -1281,6 +1390,11 @@ struct Prop *index2prop(int n);
 void check_npc_task(struct NPC *npc);
 //检查该npc所有相关任务是否完成，并对该npc的对话起点做出相应修改。
 
+void creat_relics(void);//圣遗物制造机
+
+int srandom(int n);//以当前时间（秒为单位）和指定数值为种子生成一个0～99的随机数
+
+
 /*---------定义变量，因为函数也要用到这些变量，所以定义到main外面--------*/
 
 int choosenum=-1;//记录玩家的选择
@@ -1304,6 +1418,8 @@ int gold[LEN];//金币数量
 char *waring_content="你瞎输牛魔呢？滚啊！！！";
 
 int checktask_result=0;//记录在SlowDisplay中\\T检查的结果
+
+int relics_num[5]={0,0,0,0,0};//记录各个部位圣遗物的数量
 /*---------main函数-----------*/
 int main() {
 	/*初始化各种数组*/
@@ -2881,9 +2997,29 @@ void check_npc_task(struct NPC *npc) {
 	}
 }
 
+void creat_relics(void){//圣遗物制造机
+	int n=random()%5;
+	struct Attribute arrtibute={
+		.crit_rate=srandom(1)%29/100,
+		.crit_damage=srandom(2)%57/100,
+		.damage=srandom(3)%400,
+		.damage_rate=srandom(4)%30/100,
+		.hp=srandom(5)*10,
+		.hp_rate=srandom(6)%25/100,
+		.def=srandom(7)/5,
+		.def_rate=srandom(8)%17/100,
+		.miss=srandom(9)%20/100,
+		.cure=srandom(10)%3/10,
+	};
+	relics[n][++relics_num[n]].n=n;
+	relics[n][relics_num[n]].attribute=arrtibute;
+}
 
 
-
+int srandom(int n) { //以当前时间（秒为单位）和指定数值为种子生成一个0～99的随机数
+	srand((unsigned)time(NULL)+n);
+	return rand() % 100;
+}
 
 
 
