@@ -178,7 +178,7 @@ struct Task {
 	int son[5];//子任务的编号
 	int condition[4];//前置条件，0是否拥有某种道具，1是否拥有某种纪念品，
 	//2是否完成某个任务，3对应0所需的道具数量
-	int lever[LEN];//前置条件-是否达到指定等级
+	int lever;//前置条件-是否达到指定等级
 	char *intro;//任务内容描述
 	int f_son;//完成条件，至少要完成几个子任务（用于多分支任务）
 	int f_condition[4];//完成条件，0是否拥有某种道具，1是否拥有某种纪念品，
@@ -1251,6 +1251,32 @@ struct ConNode conversations[500]= {
 		.start_task=0,
 		.check_task=0,
 	},
+	{
+		//9
+		.fight=0,
+		.content="这是一个测试文本9。无选择。会尝试提交任务\\W",
+		.ifchoose=0,
+		.start_task=0,
+		.check_task=1,
+		.finish_next_con={10,11},
+	},
+	{
+		//10
+		.fight=0,
+		.content="你还没有完成任务！\\W",
+		.ifchoose=0,
+		.start_task=0,
+		.check_task=0,
+	},
+	{
+		//11
+		.fight=0,
+		.content="你完成任务！\\W",
+		.ifchoose=0,
+		.next={0},
+		.start_task=0,
+		.check_task=0,
+	}
 };
 
 
@@ -1267,7 +1293,7 @@ struct Task tasks[500]= {
 		.sonnum=0,
 		.son={0,0,0,0,0},
 		.condition={0,0,0,0},
-		.lever={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.lever=0,
 		.intro="这里是任务0内容描述。intro。",
 		.con_s=0,
 		.give_prop=159,//绿色星星
@@ -1281,20 +1307,25 @@ struct Task tasks[500]= {
 	{
 		//1
 		.name="任务1",
+		.see=1,
+		.npc_s=2,
+		.npc_f=2,
+		.con_s=3,
+		.con_f=9,
 		.start=0,
 		.finish=0,
 		.father=0,
-		.sonnum=0,
-		.son={0,0,0,0,0},
+		.sonnum=3,
+		.son={3,4,5,0,0},
 		.condition={0,0,0,0},
-		.lever={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.lever=0,
 		.intro="这里是任务1内容描述。intro。",
-		.con_s=0,
+		
 		.f_condition={0,0,0,0},
 		.give_prop=159,//绿色星星
 		.give_prop_num=1000,
 		.give_souvenir=1,
-		.give_exp={0,0,0,2,0,0,0,0,0,0,0,0},
+		.give_exp={0,0,0,2,0,2,0,0,0,0,0,0},
 		.give_gold={0,0,0,2,0,0,0,0,0,0,0,0,0,0,0},
 		.next=2,
 	},
@@ -1308,7 +1339,7 @@ struct Task tasks[500]= {
 		.sonnum=0,
 		.son={0,0,0,0,0},
 		.condition={0,0,1,0},
-		.lever={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+		.lever=0,
 		.intro="与薇一同打败鲸鱼。",
 		.con_s=0,
 		.f_condition={0,0,1,0},
@@ -1319,7 +1350,80 @@ struct Task tasks[500]= {
 		.give_gold={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 		.next=0,
 	},
-
+	{
+		//3
+		.name="任务1-子任务1",
+		.see=1,
+		.npc_s=0,
+		.npc_f=0,
+		.con_s=0,
+		.start=0,
+		.finish=0,
+		.father=1,
+		.sonnum=0,
+		.son={0,0,0,0,0},
+		.condition={0,0,0,0},
+		.lever=0,
+		.intro="这里是任务1子任务1内容描述。intro。",
+		
+		.f_condition={0,0,0,0},
+		.give_prop=159,//绿色星星
+		.give_prop_num=1000,
+		.give_souvenir=1,
+		.give_exp={0,0,0,2,0,0,0,0,0,0,0,0},
+		.give_gold={0,0,0,2,0,0,0,0,0,0,0,0,0,0,0},
+		.next=0,
+	},
+	{
+		//4
+		.name="任务1-子任务2",
+		.see=1,
+		.npc_s=0,
+		.npc_f=0,
+		.con_s=0,
+		.start=0,
+		.finish=0,
+		.father=1,
+		.sonnum=0,
+		.son={0,0,0,0,0},
+		.condition={0,0,0,0},
+		.lever=0,
+		.intro="这里是任务1子任务2内容描述。intro。",
+		
+		.f_condition={0,0,0,0},
+		.give_prop=159,//绿色星星
+		.give_prop_num=1000,
+		.give_souvenir=1,
+		.give_exp={0,0,0,2,0,0,0,0,0,0,0,0},
+		.give_gold={0,0,0,2,0,0,0,0,0,0,0,0,0,0,0},
+		.next=0,
+	},
+	{
+		//5
+		.name="任务1-子任务3",
+		.see=1,
+		.npc_s=0,
+		.npc_f=0,
+		.con_s=0,
+		.start=0,
+		.finish=0,
+		.father=1,
+		.sonnum=0,
+		.son={0,0,0,0,0},
+		.condition={0,0,0,0},
+		.lever=0,
+		.intro="这里是任务1子任务3内容描述。intro。",
+		
+		.f_condition={0,0,0,0},
+		.give_prop=159,//绿色星星
+		.give_prop_num=1000,
+		.give_souvenir=1,
+		.give_exp={0,0,0,2,0,0,0,0,0,0,0,0},
+		.give_gold={0,0,0,2,0,0,0,0,0,0,0,0,0,0,0},
+		.next=0,
+	},
+	
+	
 
 
 
@@ -1336,11 +1440,19 @@ struct NPC npcs[50]= {
 	},
 	{
 		//1
-		.name="村长",
+		.name="薇",
 		.var={0},
 		.con=&conversations[4],
 	},
-
+	{
+		//2
+		.name="测试npc",
+		
+		.task={1,1},
+		.var={0},
+		.nomal_con=1,
+		.con=&conversations[1],
+	}
 
 
 
@@ -1416,6 +1528,9 @@ struct Prop *index2prop(int n);
 void check_npc_task(struct NPC *npc);
 //检查该npc所有相关任务是否完成，并对该npc的对话起点做出相应修改。
 
+void tasktree(void);
+//输出任务树
+
 void creat_relics(void);
 //圣遗物制造机
 
@@ -1480,9 +1595,11 @@ int main() {
 	while(1) {
 		system("cls");
 
-		conversation(&players[0],&npcs[1]);
+		conversation(&players[0],&npcs[2]);//测试任务系统
+		tasktree();
+		//conversation(&players[0],&npcs[1]);//薇
 		//bag();
-		//attackact(&players[0],monster);
+		//attackact(&players[0],monster,1);
 	}
 
 	//putheart();
@@ -1750,6 +1867,7 @@ void leverUP(int i) { //判断是否升级并执行,i使指结构体数组里第
 
 int attackact(struct Player *player,struct Monster monster,int e) {
 //战斗模块，赢了返回1输了返回0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        妈的，写累死了都没写完。??
+	count();
 	system("cls");//清除控制台
 	SlowDisplay(monster.name,0);
 	SlowDisplay(monster.v,0);
@@ -2014,6 +2132,10 @@ PlayerRand:
 				printf("%s",player->defp->name);
 				SlowDisplay("\n:当前等级:",0);
 				printf("%ld",player->lever);
+				SlowDisplay("\n暴击率：",0);
+				printf("%f%%",player->crit_rate*100);
+				SlowDisplay("\n暴击伤害：",0);
+				printf("%f%%",player->crit_damage*100);
 
 				printf("\n");
 				SlowDisplay(monster.name,0);
@@ -2524,6 +2646,7 @@ void bag(void) { //察看背包及其它操作函数
 
 
 void conversation(struct Player *player,struct NPC *npc) {
+	check_npc_task(npc);
 	struct ConNode *con=npc->con;
 LOOP:
 	//if(con->speaker)printf("%s:",npcs[con->speaker].name);
@@ -2577,6 +2700,12 @@ LOOP:
 			SlowDisplay(tasks[con->start_task].name,0);
 			printf(" !");
 			tasks[con->start_task].start=1;
+			if(tasks[con->start_task].sonnum){//如果这个任务有子任务
+				for(int son=0;son<tasks[con->start_task].sonnum;son++){
+					tasks[tasks[con->start_task].son[son]].start=1;//接取子任务
+				}
+			}
+			check_npc_task(npc);//修改提交npc的起始对话
 
 		} else if(checktask(&tasks[con->start_task])==2) {
 			SlowDisplay("该任务以接取。当你看到这句话时，说明我搞砸了什么。看到此条消息请联系作者，并记下下列信息：\n",1);
@@ -2611,13 +2740,21 @@ LOOP:
 			souvenir[change_task->give_souvenir].have=1;
 			plusarr(change_task->give_exp,player[0].exp);
 			plusarr(change_task->give_gold,gold);
+			change_task->finish=1;//结束任务
+			
 			tasks[tasks[con->check_task].next].start=1;//自动接取后续任务
 			con=&conversations[con->finish_next_con[1]];
 			leverUP(0);
 			npc->con=&conversations[npc->nomal_con];//这个任务结束了，将NPC的对话起点改回去
+			
 			check_npc_task(npc);
+		
+			goto LOOP;
+		}else if(kg==2){//任务未完成
+			con=&conversations[con->finish_next_con[0]];
 			goto LOOP;
 		}
+		
 	}
 
 
@@ -2891,14 +3028,15 @@ int checktask(struct Task *task) {
 //优先级从前往后升高
 
 	int result=1;
-	if(task->start) {
-		result=2;
-		goto FINISH;
-	}
 	if(task->finish) {
 		result=4;
 		goto END;
 	}
+	if(task->start) {
+		result=2;
+		goto FINISH;
+	}
+	
 
 	//检查开启条件
 	//检查道具
@@ -3013,10 +3151,11 @@ void check_npc_task(struct NPC *npc) {
 	for(int i=1; i<=tnum; i++) {
 		int num=npc->task[i];//记录每个任务的编号
 		int kg=checktask(&tasks[num]);//检查这些任务完成情况
+		
 		if(kg==1) { //该任务可被开启
 			npcs[tasks[num].npc_s].con=&conversations[tasks[num].con_s];//更改对话起点
 		}
-		if(kg==2||kg==3) {
+		if(kg==2||kg==3) {//任务已经开启或已经完成，但未提交
 			npcs[tasks[num].npc_f].con=&conversations[tasks[num].con_f];//更改对话起点
 		}
 
@@ -3064,7 +3203,7 @@ void count(void) { //计算攻击力等等数值，用于更换圣遗物、升�
 		float cure;//治疗加成
 		for(int j=0; j<5; j++) { //遍历圣遗物并统计加成
 			struct Attribute arrtibute;
-			arrtibute = relics[players[i].relics[j]]->attribute;
+			arrtibute = relics[j][players[i].relics[j]].attribute;
 			crit_rate+=arrtibute.crit_rate;
 			crit_damage+=arrtibute.crit_damage;
 			damage_rate+=arrtibute.damage_rate;
