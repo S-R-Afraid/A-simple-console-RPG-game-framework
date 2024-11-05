@@ -3790,7 +3790,7 @@ void count(void) { //计算攻击力等等数值，用于更换圣遗物、升�
 		}
 		hp*=hp_rate;
 		def*=def_rate;
-		att*+damage_rate;
+		att*=damage_rate;
 		crit_rate+=0.05;//每个角色初始%5暴击率
 		if(miss>0.2)miss=0.2;
 		//修改玩家数据
