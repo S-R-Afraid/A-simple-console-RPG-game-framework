@@ -1128,7 +1128,7 @@ struct Skill skill_list[50]= {
 	{
 		//3
 		.num=3,
-		.c=0,
+		.c=1,
 		.a_num=TeamNum,
 		.name="扣一复活亲妈\0",
 		.suffix="\n\0",
@@ -2178,6 +2178,7 @@ PlayerRound:
 						player->speed+=player_buff[actlist[roundnum]][i].t_gain[j];
 						if(player->speed<0)player->speed=1;
 					}
+					puts(" ");
 				}
 			}
 			player_buff[actlist[roundnum]][i].t--;
@@ -2338,13 +2339,16 @@ PlayerRound:
 					COLOR(7);
 					SlowDisplay("  点伤害!\n",0);
 					monster->hp-=harm;//减少怪物的hp
-					monster_buff[monsterchoose[i]][monster_buff_num[monsterchoose[i]]++]=buffs[sarr[skillchoosenum].status];//给怪挂buff
-					SlowDisplay(monster->name,0);
-					SlowDisplay("  被附加了  ",0);
-					COLOR(buffs[sarr[skillchoosenum].status].n);
-					printf("%s",buffs[sarr[skillchoosenum].status].name);
-					COLOR(7);
-					SlowDisplay(" 状态!\n",0);
+					if(sarr[skillchoosenum].status) {
+						monster_buff[monsterchoose[i]][monster_buff_num[monsterchoose[i]]++]=buffs[sarr[skillchoosenum].status];//给怪挂buff
+						SlowDisplay(monster->name,0);
+						SlowDisplay("  被附加了  ",0);
+						COLOR(buffs[sarr[skillchoosenum].status].n);
+						printf("%s",buffs[sarr[skillchoosenum].status].name);
+						COLOR(7);
+						SlowDisplay(" 状态!\n",0);
+					}
+
 					if(monster->hp<=0) {
 						printf("%s",monster->name);
 						SlowDisplay("倒下了！\n",0);
@@ -2381,13 +2385,16 @@ PlayerRound:
 					COLOR(7);
 					SlowDisplay("  点伤害!\n",0);
 					monster->hp-=harm;//减少怪物的hp
-					monster_buff[i][monster_buff_num[i]++]=buffs[sarr[choosenum].status];//给怪挂buff
-					SlowDisplay(monster->name,0);
-					SlowDisplay("  被附加了  ",0);
-					COLOR(buffs[sarr[choosenum].status].n);
-					printf("%s",buffs[sarr[choosenum].status].name);
-					COLOR(7);
-					SlowDisplay(" 状态!\n",0);
+					if(sarr[choosenum].status) {
+						monster_buff[i][monster_buff_num[i]++]=buffs[sarr[choosenum].status];//给怪挂buff
+						SlowDisplay(monster->name,0);
+						SlowDisplay("  被附加了  ",0);
+						COLOR(buffs[sarr[choosenum].status].n);
+						printf("%s",buffs[sarr[choosenum].status].name);
+						COLOR(7);
+						SlowDisplay(" 状态!\n",0);
+					}
+
 					if(monster->hp<=0) {
 						printf("%s",monster->name);
 						SlowDisplay("倒下了！\n",0);
@@ -2468,13 +2475,16 @@ PlayerRound:
 							printf("%ld",teamer->hp);
 							SlowDisplay(" 点血量！\n",0);
 						}
-						player_buff[teamchoose[i]][player_buff_num[teamchoose[i]]++]=buffs[sarr[skillchoosenum].status];//给队友上buff
-						SlowDisplay(teamer->name,0);
-						SlowDisplay("  被附加了  ",0);
-						COLOR(buffs[sarr[skillchoosenum].status].n);
-						printf("%s",buffs[sarr[skillchoosenum].status].name);
-						COLOR(7);
-						SlowDisplay(" 状态!\n",0);
+						if(sarr[skillchoosenum].status) {
+							player_buff[teamchoose[i]][player_buff_num[teamchoose[i]]++]=buffs[sarr[skillchoosenum].status];//给队友上buff
+							SlowDisplay(teamer->name,0);
+							SlowDisplay("  被附加了  ",0);
+							COLOR(buffs[sarr[skillchoosenum].status].n);
+							printf("%s",buffs[sarr[skillchoosenum].status].name);
+							COLOR(7);
+							SlowDisplay(" 状态!\n",0);
+						}
+
 
 					}
 				}  else { //负面效应
@@ -2493,13 +2503,16 @@ PlayerRound:
 						COLOR(7);
 						SlowDisplay("  点痛击!\n",0);
 						teamer->hp-=harm;
-						player_buff[teamchoose[i]][player_buff_num[teamchoose[i]]++]=buffs[sarr[skillchoosenum].status];//给队友上buff
-						SlowDisplay(teamer->name,0);
-						SlowDisplay("  被附加了  ",0);
-						COLOR(buffs[sarr[skillchoosenum].status].n);
-						printf("%s",buffs[sarr[skillchoosenum].status].name);
-						COLOR(7);
-						SlowDisplay(" 状态!\n",0);//减少队友的hp
+						if(sarr[skillchoosenum].status) {
+							player_buff[teamchoose[i]][player_buff_num[teamchoose[i]]++]=buffs[sarr[skillchoosenum].status];//给队友上buff
+							SlowDisplay(teamer->name,0);
+							SlowDisplay("  被附加了  ",0);
+							COLOR(buffs[sarr[skillchoosenum].status].n);
+							printf("%s",buffs[sarr[skillchoosenum].status].name);
+							COLOR(7);
+							SlowDisplay(" 状态!\n",0);//减少队友的hp
+						}
+
 						if(teamer->hp<0) {
 							printf("%s",teamer->name);
 							SlowDisplay("倒下了！\n",0);
@@ -2769,14 +2782,17 @@ PlayerRound:
 
 
 			for(int pp=0; pp<egroup.num; pp++) {
-				printf("\n");
-				SlowDisplay(monsterarr[pp].name,0);
-				SlowDisplay(":\nhp:",0);
-				printf("%ld",monsterarr[pp].hp);
-				SlowDisplay("\n攻击力:",0);
-				printf("%ld",monsterarr[pp].attack);
-				SlowDisplay("\n防御力:",0);
-				printf("%ld\n",monsterarr[pp].defence);
+				if(monsterarr[pp].hp>0) {
+					printf("\n");
+					SlowDisplay(monsterarr[pp].name,0);
+					SlowDisplay(":\nhp:",0);
+					printf("%ld",monsterarr[pp].hp);
+					SlowDisplay("\n攻击力:",0);
+					printf("%ld",monsterarr[pp].attack);
+					SlowDisplay("\n防御力:",0);
+					printf("%ld\n",monsterarr[pp].defence);
+				}
+
 			}
 
 			wait();
@@ -2789,8 +2805,8 @@ PlayerRound:
 			if(e) {
 				if(random()<50) {
 					SlowDisplay("逃跑成功！耶！",0);
-					iniarr(monster->exp);
-					monster->exp[0]=1;//如果逃跑则没有经验
+					//iniarr(monster->exp);
+					//monster->exp[0]=1;//如果逃跑则没有经验
 
 					goto ENDATTACK;
 				} else {
@@ -2811,7 +2827,70 @@ PlayerRound:
 
 MonsterRound:
 //下面是怪物的回合
-	printf("%s\n",monster->name);
+	printf("%s开始行动了！\n",monster->name);
+	if(monster_buff_num) {//对buff进行处理
+		for(int i=0; i<monster_buff_num[actlist[roundnum]-TeamNum]; i++) {
+			for(int j=0; j<4; j++) {
+				if(monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j]) {
+					SlowDisplay(monster->name,0);
+					SlowDisplay("受到了来自状态",0);
+					COLOR(monster_buff[actlist[roundnum]-TeamNum][i].n);
+					printf(" %s ",monster_buff[actlist[roundnum]-TeamNum][i].name);
+					COLOR(7);
+					SlowDisplay("施加的",0);
+					COLOR(monster_buff[actlist[roundnum]-TeamNum][i].n);
+					printf(" %ld ",monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j]);
+					COLOR(7);
+					if(j==0) {
+						if(monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j]>0) {
+							SlowDisplay("点攻击力提高！",0);
+						} else {
+							SlowDisplay("点攻击力降低！",0);
+						}
+						monster->attack+=monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j];
+						if(monster->attack<0)monster->attack=1;
+					}
+					if(j==1) {
+						if(monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j]>0) {
+							SlowDisplay("点防御力提高！",0);
+						} else {
+							SlowDisplay("点防御力降低！",0);
+						}
+						monster->defence+=monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j];
+						if(monster->defence<0)monster->defence=1;
+					}
+					if(j==2) {
+						if(monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j]>0) {
+							SlowDisplay("点生命值提高！",0);
+						} else {
+							SlowDisplay("点生命值降低！",0);
+						}
+						monster->hp+=monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j];
+						if(player->hp<0) {
+							SlowDisplay("太棒啦！居然被状态打败了！！",0);
+							goto StartAction;
+						}
+					}
+					if(j==3) {
+						if(monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j]>0) {
+							SlowDisplay("点速度提高！",0);
+						} else {
+							SlowDisplay("点速度降低！",0);
+						}
+						monster->speed+=monster_buff[actlist[roundnum]-TeamNum][i].t_gain[j];
+						if(monster->speed<0)monster->speed=1;
+					}
+					puts(" ");
+				}
+			}
+			monster_buff[actlist[roundnum]-TeamNum][i].t--;
+			if(monster_buff[actlist[roundnum]-TeamNum][i].t==0) { //该buff已过期
+				monster_buff_num[actlist[roundnum]-TeamNum]--;
+				monster_buff[actlist[roundnum]-TeamNum][i] = monster_buff[actlist[roundnum]-TeamNum][monster_buff_num[actlist[roundnum]-TeamNum]];
+				//把列表最后一位移到当前位置
+			}
+		}
+	}
 	wait();
 	goto StartAction;
 
@@ -2827,7 +2906,7 @@ ENDATTACK:
 	}
 	SlowDisplay("战斗结束！\n\n",0);
 	SlowDisplay("\n\n\\W",0);
-	getchar();
+	wait();
 	system("cls");//清除控制台
 	return 1;
 }
@@ -3790,7 +3869,7 @@ void count(void) { //计算攻击力等等数值，用于更换圣遗物、升�
 		}
 		hp*=hp_rate;
 		def*=def_rate;
-		att*=damage_rate;
+		att*= damage_rate;
 		crit_rate+=0.05;//每个角色初始%5暴击率
 		if(miss>0.2)miss=0.2;
 		//修改玩家数据
