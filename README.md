@@ -1,2 +1,3 @@
-# bug-free-octo-goggles
+# A simple console RPG game framework 一个简单的RPG游戏框架
 随便写写
+本框架没有分文件是因为一开始纯粹想写个对话模拟，后面功能越加越多才有了现在的规模……
